@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<!--
+	Stellar by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html lang="en">
+	<head>
+		<title>Simeon Nenov&#x27;s blog - How to represent 2D array into 1D array</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="/assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="/assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="/assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="/assets/css/ie8.css" /><![endif]-->
+
+		<meta name="description" content="Welcome!" />
+		<link type="application/rss+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.rss" />
+				<link type="application/atom+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.atom" />
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<!--<link rel="apple-touch-icon" href="/images/logo.png">-->
+
+		<meta name="application-name" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-tooltip" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-starturl" content="/" />
+
+		<meta property="og:title" content="Simeon Nenov&#x27;s blog - How to represent 2D array into 1D array" /> 
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="http://ssnenov.github.io/posts/how-to-represent-2D-array-into-1D-array" />
+		<!-- TODO: More social graph meta tags -->
+        <link rel="stylesheet" href="/assets/css/csharp-dark.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-39829879-8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-39829879-8');
+</script>
+		
+	</head>
+
+	<body>
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Header -->
+
+    
+<header id="header">
+    <h1>How to represent 2D array into 1D array</h1>
+    <hr/>     
+        <p><em>Published on Monday, April 1, 2013</em></p>
+</header>
+
+			<!-- Nav -->
+			<nav id="nav">
+				<ul>
+					<li><strong><a href='/'>Simeon Nenov&#x27;s blog</a></strong></li>
+        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+
+				</ul>
+			</nav>
+
+			<!-- Main -->
+			<div id="main">
+
+				<!-- Content -->
+					<section id="content" class="main">
+						
+
+<p>This is very interesting question &quot;How to represents 2D array into 1D array?&quot;. In this post I'll show you two ways to do it:</p>
+<ol>
+<li>Row-Major order</li>
+<li>Column-Major order (vectorization)</li>
+</ol>
+<p><img src="images/array2d1.gif" class="img-fluid" alt="2d array to 1d" /></p>
+<h2 id="reasons-to-use-it">Reasons to use it:</h2>
+<ol>
+<li>When you transfer 2D array using file between applications written in different languages.</li>
+<li>When you are traversing array you will have better performance, because accessing the element from contiguous order is usually faster than accessing element from 2D array.</li>
+</ol>
+<h2 id="examples">Examples</h2>
+<h3 id="d-example">2D Example</h3>
+<p>Now I'll give you a short example with 2D array and how it's represents contiguously in memory:</p>
+<pre class="language-csharp"><code><span class="Keyword">int</span>[,] my2dArray = { {<span class="Number">1</span>, <span class="Number">2</span>, <span class="Number">3</span>}, {<span class="Number">4</span>, <span class="Number">5</span>, <span class="Number">6</span>} };
+</code></pre>
+<p>The result will be:</p>
+<pre><code>1, 2, 3
+
+4, 5 ,6
+</code></pre>
+<p>We have 6 numbers separated in 2 rows (3 numbers per row).</p>
+<p>If you want to use row-major order or column-major order you must to know the exact width and height of array, because the length of array will be width * height
+For example:</p>
+<pre class="language-csharp"><code><span class="Keyword">int</span>[] myArray = <span class="Keyword">new </span><span class="Keyword">int</span>[rowsNumber * columnsNumber];
+</code></pre>
+<h3 id="row-major-order">Row-Major order</h3>
+<p>I use this way for representing two dimensional array. This is the formula for row-major order:</p>
+<blockquote class="blockquote">
+<p>Element = currentRow * columnsNumber + currentColumn</p>
+</blockquote>
+<p>And this is simple example:</p>
+<pre class="language-csharp"><code><span class="Keyword">int </span>rowsNumber = <span class="Number">2</span>, columnsNumber = <span class="Number">3</span>;
+<span class="Keyword">int</span>[,] my2DArray = <span class="Keyword">new </span><span class="Keyword">int</span>[rowsNumber, columnsNumber];
+<span class="Keyword">int</span>[] myArray = <span class="Keyword">new </span><span class="Keyword">int</span>[rowsNumber * columnsNumber];
+<span class="Keyword">
+for </span>(<span class="Keyword">int </span>currentRow = <span class="Number">0</span>; currentRow < rowsNumber; currentRow++)
+{
+<span class="Keyword">    for </span>(<span class="Keyword">int </span>currentColumn = <span class="Number">0</span>; currentColumn < columnsNumber; currentColumn++)
+    {
+        my2DArray[currentRow , currentColumn] = <span class="Keyword">int</span>.<span class="MethodIdentifier">Parse</span>(<span class="Identifier">Console</span>.<span class="MethodIdentifier">ReadLine</span>());
+    }
+}
+<span class="Keyword">
+for </span>(<span class="Keyword">int </span>currentRow = <span class="Number">0</span>; currentRow < rowsNumber; currentRow++)
+{
+<span class="Keyword">    for </span>(<span class="Keyword">int </span>currentColumn = <span class="Number">0</span>; currentColumn < columnsNumber; currentColumn++)
+    {
+        myArray[currentRow * columnsNumber + currentColumn] = my2DArray[currentRow, urrentColumn];
+<span class="Keyword">        int </span>value = myArray[currentRow * columnsNumber + currentColumn];
+<span class="Identifier">        Console</span>.<span class="MethodIdentifier">WriteLine</span>(value);
+    }
+}
+</code></pre>
+<p>Now in the memory there will be only one row with 6 elements (columns) not 2 rows with 3 elements (columns) per row.</p>
+<blockquote class="blockquote">
+<p>The result is: 1, 2, 3, 4, 5, 6</p>
+<p>*Input data: 1 2 3 4 5 6</p>
+</blockquote>
+<h3 id="column-major-order-vectorization">Column-Major order (vectorization)</h3>
+<p>This type of representing is more popular as &quot;vectorization&quot;, because you make all columns from the array to be 1D array (vector). This is the formula for column-major order:</p>
+<blockquote class="blockquote">
+<p>Element = currentColumn * rowsNumber + currentRow</p>
+</blockquote>
+<pre class="language-csharp"><code><span class="Keyword">int </span>rowsNumber = <span class="Number">2</span>, columnsNumber = <span class="Number">3</span>;
+<span class="Keyword">int</span>[,] my2DArray = <span class="Keyword">new </span><span class="Keyword">int</span>[rowsNumber, columnsNumber];
+<span class="Keyword">int</span>[] myArray = <span class="Keyword">new </span><span class="Keyword">int</span>[rowsNumber * columnsNumber];
+<span class="Keyword">
+for </span>(<span class="Keyword">int </span>currentRow = <span class="Number">0</span>; currentRow < rowsNumber; currentRow++)
+{
+<span class="Keyword">    for </span>(<span class="Keyword">int </span>currentColumn = <span class="Number">0</span>; currentColumn < columnsNumber; currentColumn++)
+    {
+        my2DArray[currentRow , currentColumn] = <span class="Keyword">int</span>.<span class="MethodIdentifier">Parse</span>(<span class="Identifier">Console</span>.<span class="MethodIdentifier">ReadLine</span>());
+    }
+}
+<span class="Keyword">
+for </span>(<span class="Keyword">int </span>currentRow = <span class="Number">0</span>; currentRow < rowsNumber; currentRow++)
+{
+<span class="Keyword">    for </span>(<span class="Keyword">int </span>currentColumn = <span class="Number">0</span>; currentColumn < columnsNumber; currentColumn++)
+    {
+        myArray[currentColumn * rowsNumber + currentRow] = my2DArray[currentRow, urrentColumn];
+<span class="Keyword">        int </span>value = myArray[currentColumn * rowsNumber + currentRow];
+<span class="Identifier">        Console</span>.<span class="MethodIdentifier">WriteLine</span>(value);
+    }
+}
+</code></pre>
+<p>Now in the memory there will be only one row with 6 elements (columns).</p>
+<blockquote class="blockquote">
+<p>The result is: 1, 4, 2, 5, 3, 6</p>
+<p>*Input data: 1 2 3 4 5 6</p>
+</blockquote>
+
+
+  
+        <ul class="actions small">
+                    <li><a role="button" href="/tags/arrays.html" class="button small special">arrays</a></li>
+                    <li><a role="button" href="/tags/c%23.html" class="button small special">c#</a></li>
+                    <li><a role="button" href="/tags/Performance.html" class="button small special">Performance</a></li>
+        </ul>     
+ 
+					</section>
+
+			</div>
+
+			<!-- Footer -->
+			<footer id="footer">
+				<section>
+        <h2>Feeds</h2>
+        <ul class="actions">
+            <li><a href="/feed.rss" class="button small"><i class="fa fa-rss"></i> RSS Feed</a></li>
+                        <li><a href="/feed.atom" class="button small"><i class="fa fa-rss"></i> Atom Feed</a></li>
+        </ul>
+</section>
+<section>
+</section>
+<p class="copyright">
+    Copyright © 2019,
+    Design: <a href="http://html5up.net">HTML5 UP</a>,
+    <a href="https://wyam.io">Generated by Wyam</a>
+</p>
+			</footer>
+
+		</div>
+		
+		
+
+	<!-- Scripts -->
+	<script src="/assets/js/jquery.min.js"></script>
+	<script src="/assets/js/jquery.scrollex.min.js"></script>
+	<script src="/assets/js/jquery.scrolly.min.js"></script>
+	<script src="/assets/js/skel.min.js"></script>
+	<script src="/assets/js/util.js"></script>
+	<!--[if lte IE 8]><script src="/assets/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/assets/js/main.js"></script>
+
+	</body>
+	
+</html>

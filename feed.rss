@@ -1,0 +1,444 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+	<channel>
+		<title>Simeon Nenov's blog</title>
+		<link>http://ssnenov.github.io/</link>
+		<description>Welcome!</description>
+		<copyright>2019</copyright>
+		<pubDate>Wed, 20 Feb 2019 19:25:56 GMT</pubDate>
+		<lastBuildDate>Wed, 20 Feb 2019 19:25:56 GMT</lastBuildDate>
+		<item>
+			<title>Stop using .Result or .Wait() on tasks and why it's dangerous</title>
+			<link>http://ssnenov.github.io/posts/stop-using-result-and-wait-and-why-it-is-dangerous</link>
+			<description>&lt;p&gt;I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/stop-using-result-and-wait-and-why-it-is-dangerous</guid>
+			<pubDate>Sat, 02 Feb 2019 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.&lt;/p&gt;
+&lt;p&gt;Let's get straight to the point.&lt;/p&gt;
+&lt;p&gt;Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &amp;quot;use async/await all the way down&amp;quot; with complex explanations. But why not opposite - using Result or Wait()? Because of potential &amp;quot;thread starvation&amp;quot; and/or &amp;quot;deadlock&amp;quot;. Without any examples it is not giving enough light on this topic to me. And you, right?&lt;/p&gt;
+&lt;p&gt;Ok. Enough. If you are still with me let's get our hands dirty and see some code:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Identifier"&gt;ThreadPool&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;SetMaxThreads&lt;/span&gt;(&lt;span class="Number"&gt;4&lt;/span&gt;, &lt;span class="Number"&gt;4&lt;/span&gt;);
+&lt;span class="Identifier"&gt;var &lt;/span&gt;tasks = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;List&lt;/span&gt;&lt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;&gt;();
+&lt;span class="Keyword"&gt;for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;i = &lt;span class="Number"&gt;0&lt;/span&gt;; i &lt; &lt;span class="Number"&gt;4&lt;/span&gt;; i++)
+{
+    tasks.&lt;span class="MethodIdentifier"&gt;Add&lt;/span&gt;(&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;HttpClient&lt;/span&gt;().&lt;span class="MethodIdentifier"&gt;GetStringAsync&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"https://google.com"&lt;/span&gt;).Result));
+}
+&lt;span class="Identifier"&gt;
+Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WhenAll&lt;/span&gt;(tasks).&lt;span class="MethodIdentifier"&gt;Wait&lt;/span&gt;();
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;As initial step we are limiting all available threads in the threadpool. After that imagine that every Task that is ran is simulating a new asp.net request. So we have 4 requests coming simultaneously and 4 available threads which can process the requests. Every of this requests are trying to call a rest service or just doing something with somekind of internet resource by using HttpClient. So far, so good. Calling .Result or .Wait() is holding the current thread to wait the async task to complete and this is accomplished by something similar to &lt;code&gt;while(!IsCompleted){}&lt;/code&gt; loop. Also every async I/O operation (in this case web request) is started by one thread and it's completed by the same OR different thread. There is no guarantee the same thread will make the request and complete it. So we have 4 request threads waiting for a Task to complete, no more available threads in the threadpool and when some of the web requests complete - guess what?&lt;/p&gt;
+&lt;center&gt;&lt;img src="images/deadlock1.jpg"/&gt;&lt;/center&gt;
+&lt;p&gt;You have no more available threads to complete the result of your async I/O operations. It's simple - you have all allocated threads in the pool busy with waiting (&lt;code&gt;while(IsCompleted){}&lt;/code&gt;) tasks which are waiting for web requests to complete and web responses are waiting for available threads to complete.&lt;/p&gt;
+&lt;p&gt;Now you have one strong reason why you have not to call .Result or .Wait().&lt;/p&gt;
+&lt;h2 id="solution-or-not-exactly"&gt;Solution (or not exactly?!)&lt;/h2&gt;
+&lt;p&gt;&lt;a href="https://stackoverflow.com/questions/31954224/best-way-to-use-the-nice-net-4-5-httpclient-synchronously"&gt;Here&lt;/a&gt; is what the community suggests to escape from the problem.&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; &lt;span class="Identifier"&gt;Client&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;PostAsync&lt;/span&gt;()).Result;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The problem with the following code is that in our case it will start the web request in a new task which returns the web request's task itself. The result of the web request is queued as a task in the ThreadPoolTaskScheduler (default TaskScheduler). However, when the request completes and you don't have free threads to execute the scheduled task from the TaskScheduler then again you have...&lt;/p&gt;
+&lt;center&gt;&lt;img src="images/deadlock3.jpg"/&gt;&lt;/center&gt;
+&lt;h2 id="thread-starvation"&gt;Thread starvation&lt;/h2&gt;
+&lt;p&gt;Even you haven't deadlock you still has a problem using Result or Wait(). Let's move on and see what is thread starvation.&lt;/p&gt;
+&lt;p&gt;If not all of the web requests to your server are performing async I/O operating using .Wait() or .Result then we can enter another interesting case. Waiting for the web request and completing the I/O (on another thread), we are using 2 of the available threads instead of one. This could lead to thread starvation and lower throughput of your application.&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Identifier"&gt;ThreadPool&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;SetMaxThreads&lt;/span&gt;(&lt;span class="Number"&gt;4&lt;/span&gt;, &lt;span class="Number"&gt;4&lt;/span&gt;);
+&lt;span class="Identifier"&gt;var &lt;/span&gt;tasks = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;List&lt;/span&gt;&lt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;&gt;();
+&lt;span class="Keyword"&gt;
+for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;i = &lt;span class="Number"&gt;0&lt;/span&gt;; i &lt; &lt;span class="Number"&gt;4&lt;/span&gt;; i++)
+{
+    tasks.&lt;span class="MethodIdentifier"&gt;Add&lt;/span&gt;(&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; { &lt;span class="Identifier"&gt;Thread&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Sleep&lt;/span&gt;(&lt;span class="Number"&gt;10000&lt;/span&gt;); &lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(&lt;span class="Identifier"&gt;DateTime&lt;/span&gt;.Now); }));
+    tasks.&lt;span class="MethodIdentifier"&gt;Add&lt;/span&gt;(&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; { &lt;span class="Identifier"&gt;Thread&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Sleep&lt;/span&gt;(&lt;span class="Number"&gt;5000&lt;/span&gt;); &lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(&lt;span class="Identifier"&gt;DateTime&lt;/span&gt;.Now); }));
+    tasks.&lt;span class="MethodIdentifier"&gt;Add&lt;/span&gt;(&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; { &lt;span class="Identifier"&gt;Thread&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Sleep&lt;/span&gt;(&lt;span class="Number"&gt;2000&lt;/span&gt;); &lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(&lt;span class="Identifier"&gt;DateTime&lt;/span&gt;.Now); }));
+    tasks.&lt;span class="MethodIdentifier"&gt;Add&lt;/span&gt;(&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Run&lt;/span&gt;(() =&gt; { &lt;span class="Identifier"&gt;Thread&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Sleep&lt;/span&gt;(&lt;span class="Number"&gt;1000&lt;/span&gt;); &lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(&lt;span class="Identifier"&gt;DateTime&lt;/span&gt;.Now); }));
+}
+&lt;span class="Identifier"&gt;
+Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WhenAll&lt;/span&gt;(tasks).&lt;span class="MethodIdentifier"&gt;Wait&lt;/span&gt;();
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this example we are  simulating each asp.net request to take a few busy seconds to complete it's work (it could be waiting for internet resource with .Result). Here are the results of execution:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;1/1/1900 10:04:57 AM
+1/1/1900 10:04:58 AM
+1/1/1900 10:05:01 AM
+1/1/1900 10:05:03 AM
+1/1/1900 10:05:03 AM
+1/1/1900 10:05:04 AM
+1/1/1900 10:05:06 AM
+1/1/1900 10:05:07 AM
+1/1/1900 10:05:08 AM
+1/1/1900 10:05:08 AM
+1/1/1900 10:05:09 AM
+1/1/1900 10:05:11 AM
+1/1/1900 10:05:12 AM
+1/1/1900 10:05:13 AM
+1/1/1900 10:05:13 AM
+1/1/1900 10:05:18 AM
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You can see how the requests is pausing in groups and starving is in place. Now if we assume our task is slow enough then IsComplete is never or almost never equal to True, so we have something like while(true) that holds the thread for enough time. This will result in a spike for high CPU Queue Length without the processor actually working but instead &lt;strong&gt;.WAIT&lt;/strong&gt;ing(). High CPU Queue Length could be a sign for thread starvation.&lt;/p&gt;
+&lt;h2 id="solution"&gt;Solution&lt;/h2&gt;
+&lt;p&gt;I'm sorry for the bad news if you are a fan of .Result and Wait(), but the ultimate solution is to use async/await all the way down and never use blocking operations such as .Result and .Wait().&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;center&gt;&lt;img src="images/deadlock2.jpg"/&gt;&lt;/center&gt;
+&lt;p&gt;I suggest you to not use async/await because it's just new (to you) or it's cool. If you don't understand how exactly works and the execution context of your code (asp.net, console app, wpf app and etc.) probably it's better to stick with the &lt;strong&gt;synchronous methods&lt;/strong&gt; especially when working with asp.net or console application (wpf and winforms are kinds of a different story). Computers nowadays are extremely powerful to serve hundreds or thousands of requests per second without async I/O operation. If you need high scalability and your application should be high perform-ant then async/await is the way to go. But before that think on how you can improve your application (I think there would be tons of ways to do that) without the complexity of async/await. Another reason to not use it - it's hard to understand to newcomers and it's highly error prone even to most senior developers (you know - everybody has bugs).&lt;/p&gt;
+&lt;h3 id="resources"&gt;Resources&lt;/h3&gt;
+&lt;p&gt;&lt;a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/"&gt;https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html"&gt;https://windows10gadgets.pro/tipstricks/processorqueuelength.html&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/"&gt;https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/&lt;/a&gt;&lt;/p&gt;
+</content:encoded>
+		</item>
+		<item>
+			<title>jQuery performance - part 1 [Selectors]</title>
+			<link>http://ssnenov.github.io/posts/jQuery-performance-part-1</link>
+			<description>&lt;p&gt;If you are writing a jQuery plugin/framework or you want better performance of your code you will find the post as interesting.&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/jQuery-performance-part-1</guid>
+			<pubDate>Mon, 22 Jul 2013 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;h2 id="selecting-element-by-id-class-attribute"&gt;Selecting element by id &amp;amp; class attribute&lt;/h2&gt;
+&lt;p&gt;If you are writing a jQuery plugin/framework or you want better performance of your code you will find the post as interesting.&lt;/p&gt;
+&lt;h3 id="use-id-attribute-as-much-as-possible"&gt;Use id attribute as much as possible!&lt;/h3&gt;
+&lt;p&gt;The best way to select an element from the DOM is using an id attribute. Selecting an element in this way $(&amp;quot;#myId&amp;quot;) calls the browser javascript engine using getElementById() function. The function getElementById() returns reference to the first element object in document by it's id. If the element with the specific id isn't found in the document the function returns null.&lt;/p&gt;
+&lt;p&gt;Let's see the following code:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;script src=&amp;quot;http://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+&amp;lt;div id=&amp;quot;#myId&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;script&amp;gt;
+    console.time('selecting by id');
+    for(var i = 0; i &amp;lt; 100000; i++)
+    {
+        var element = $('#myId');
+    }
+    console.timeEnd('selecting by id');
+&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The average result of executing the code is 292.11ms (The results have been observed on my PC. The performance will be different in different hardware configurations. The results varies and they might depends on version of jQuery, the actual performance of your system and so on). Now lets see what will be the performance when we are selecting by class name.&lt;/p&gt;
+&lt;h3 id="performance-selecting-by-class-name"&gt;Performance selecting by class name&lt;/h3&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;script src=&amp;quot;http://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+&amp;lt;div class=&amp;quot;myClassName&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;script&amp;gt;
+    console.time('selecting by class name');
+    for(var i = 0; i &amp;lt; 100000; i++)
+    {
+        var element = $('.myClassName');
+    }
+    console.timeEnd('selecting by class name');
+&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Wooooow!?!&lt;/strong&gt;
+Average: 1278.92ms&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;PS: I've had only one element in the DOM. Can you imagine if I have got 1500 elements in the document what will be the result? I don't want to imagine...&lt;/em&gt;&lt;/p&gt;
+&lt;h2 id="its-time-for-comparing-the-results"&gt;It's time for comparing the results&lt;/h2&gt;
+&lt;p&gt;&lt;img src="images/jqueryselectors-performance.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;p&gt;It's a simple math ... 1278.92 - 292.11 = 986.81ms are the difference between these two simple selectors. I've made the test using the loop who repeats 100 000 times. If we divide the result of the 100 000 repeats we have 0.01ms(approximately difference) for each selection. I'm remaindering you that I've had only one element in the document and the tests have been made on my computer =&amp;gt; this affects to the results(in most cases positively).&lt;/p&gt;
+&lt;h2 id="fastest-way-to-select-with-both-selectors"&gt;Fastest way to select with both selectors&lt;/h2&gt;
+&lt;p&gt;People often doesn't know how to select the elements correctly. I see people to use:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var element = $(&amp;quot;#myId .myClassName .mySecondClass p input&amp;quot;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;... usually and often it's the correct way to select elements but sometimes when you have many nested elements in the DOM the classic way isn't the fastest. Now I'm going to explain you how Sizzle works(Sizzle.js is JavaScript library who helps us to select elements from the DOM easily. When you get jQuery you have the sizzle inside by default). Sizzle reads the selectors from right to left. E.g. Sizzle gets all the inputs -&amp;gt; which are in paragraphs -&amp;gt; which are in elements with class &amp;quot;mySecondClass&amp;quot; -&amp;gt; which are in elements with class &amp;quot;myClassName&amp;quot; -&amp;gt; which are in element with Id &amp;quot;myId&amp;quot;. So long way to do it. For 100 000 selections of the element the average time is: 3584ms. There are several ways to select the same element. I'll show you some of them...&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var element = $(&amp;quot;#myId&amp;quot;).children(&amp;quot;.myClassName&amp;quot;).children(&amp;quot;.mySecondClass&amp;quot;).children(&amp;quot;p input&amp;quot;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now we get directly the element with id equals to &amp;quot;myId&amp;quot;. Using the children() function calls $.sibling() method that makes the operation slower. The test takes 15265ms for executing (again 100 000 selections).&lt;/p&gt;
+&lt;p&gt;One of the fastest way to select the element from second or bigger level of the DOM without using children() is using find().&lt;/p&gt;
+&lt;p&gt;The find() searches all inner levels of the DOM. Difference here is that the children() searches only the first level of parent. E.g.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;div id=&amp;quot;first&amp;quot;&amp;gt;
+&amp;lt;input type=&amp;quot;text&amp;quot; /&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;script&amp;gt;
+    $(function ()
+    {
+        var element = $(&amp;quot;#first&amp;quot;).children(&amp;quot;input&amp;quot;);
+    });
+&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The children() will never find the input element. In this case you have to use the find() method.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var element = $(&amp;quot;#myId&amp;quot;).find(&amp;quot;.myClassName .mySecondClass p input&amp;quot;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I've selected the element 100 000 times using the find() and the average result was: 6219ms&lt;/p&gt;
+&lt;h3 id="the-results"&gt;The Results&lt;/h3&gt;
+&lt;p&gt;&lt;img src="images/jqueryselectors-performance2.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion:&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Use id attribute as much as possible&lt;/li&gt;
+&lt;li&gt;If you want to search a child from second or bigger level in the DOM you have to use find() not children().&lt;/li&gt;
+&lt;li&gt;Hint: Don't specify the type of searched element e.g. $(&amp;quot;div.myClass&amp;quot;)&lt;/li&gt;
+&lt;/ol&gt;
+</content:encoded>
+		</item>
+		<item>
+			<title>Kendo ToolTip How to cache your ajax response?</title>
+			<link>http://ssnenov.github.io/posts/Kendo-ToolTip-How-to-cache-your-ajax-response</link>
+			<description>&lt;p&gt;Today I had a task to make ToolTip that cache the response from ajax request. But the problem is that KendoUI ToolTip doesn't supports option for enabling the cache. By default they set "false" value to "cache" property in $.ajax method. Also by default you can't chose the type of request (POST/GET). Now I'll show you how I resolved the problem.&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/Kendo-ToolTip-How-to-cache-your-ajax-response</guid>
+			<pubDate>Thu, 18 Apr 2013 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;Today I had a task to make ToolTip that cache the response from ajax request. But the problem is that KendoUI ToolTip doesn't supports option for enabling the cache. By default they set &amp;quot;false&amp;quot; value to &amp;quot;cache&amp;quot; property in $.ajax method. Also by default you can't chose the type of request (POST/GET). Now I'll show you how I resolved the problem.&lt;/p&gt;
+&lt;p&gt;You should to &lt;strong&gt;put this code after initializing your tooltip&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;kendo.ui.Tooltip.fn._ajaxRequest = function (options) {
+    var that = this;
+        jQuery.ajax($.extend({
+            type: &amp;quot;POST&amp;quot;, // I changed the type to POST
+            dataType: &amp;quot;html&amp;quot;,
+            cache: true, // and cache to true
+            error: function (xhr, status) {
+            kendo.ui.progress(that.content, false);
+            that.trigger(ERROR, {
+                status: status,
+                xhr: xhr
+            });
+        },
+        success: $.proxy(function (data) {
+        kendo.ui.progress(that.content, false);
+        that.content.html(data);
+        that.trigger(&amp;quot;contentLoad&amp;quot;);
+        }, that)
+    }, options));
+};
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now I'll make my action to cache the response in controller.&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;[&lt;span class="Identifier"&gt;HttpPost&lt;/span&gt;]
+[&lt;span class="Identifier"&gt;OutputCache&lt;/span&gt;(Duration=&lt;span class="Number"&gt;3600&lt;/span&gt;, Location=&lt;span class="Identifier"&gt;OutputCacheLocation&lt;/span&gt;.ServerAndClient, VaryByParam=&lt;span class="StringLiteral"&gt;"myDynamicId"&lt;/span&gt;)]
+&lt;span class="Keyword"&gt;public &lt;/span&gt;&lt;span class="Identifier"&gt;ActionResult &lt;/span&gt;GetCarInfromation(&lt;span class="Keyword"&gt;int &lt;/span&gt;myDynamicId)
+{
+&lt;span class="Identifier"&gt;    var &lt;/span&gt;myQueryResult = db.Cars.&lt;span class="MethodIdentifier"&gt;Single&lt;/span&gt;(x =&gt; x.CarId == myDynamicId);
+&lt;span class="Keyword"&gt;    return &lt;/span&gt;&lt;span class="MethodIdentifier"&gt;View&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"myPartialView"&lt;/span&gt;, myQueryResult);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I set the duration to be 3600 seconds and cache location to be to the server side and to the client side. Also I set my dynamic parameter(&amp;quot;myDynamicId&amp;quot;) with &amp;quot;VaryByParam&amp;quot; attribute.&lt;/p&gt;
+&lt;p&gt;Now the response from action are cached for 1 hour. This should to improve your performance and usually makes time for response two times faster.&lt;/p&gt;
+&lt;p&gt;You can read more about caching and performance in asp.net mvc &lt;a href="https://docs.microsoft.com/en-us/aspnet/mvc/overview/older-versions-1/controllers-and-routing/improving-performance-with-output-caching-cs"&gt;here&lt;/a&gt;.&lt;/p&gt;
+</content:encoded>
+		</item>
+		<item>
+			<title>How to represent 2D array into 1D array</title>
+			<link>http://ssnenov.github.io/posts/how-to-represent-2D-array-into-1D-array</link>
+			<description>&lt;p&gt;This is very interesting question "How to represents 2D array into 1D array?". In this post I'll show you two ways to do it:&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/how-to-represent-2D-array-into-1D-array</guid>
+			<pubDate>Mon, 01 Apr 2013 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;This is very interesting question &amp;quot;How to represents 2D array into 1D array?&amp;quot;. In this post I'll show you two ways to do it:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Row-Major order&lt;/li&gt;
+&lt;li&gt;Column-Major order (vectorization)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src="images/array2d1.gif" class="img-fluid" alt="2d array to 1d" /&gt;&lt;/p&gt;
+&lt;h2 id="reasons-to-use-it"&gt;Reasons to use it:&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;When you transfer 2D array using file between applications written in different languages.&lt;/li&gt;
+&lt;li&gt;When you are traversing array you will have better performance, because accessing the element from contiguous order is usually faster than accessing element from 2D array.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id="examples"&gt;Examples&lt;/h2&gt;
+&lt;h3 id="d-example"&gt;2D Example&lt;/h3&gt;
+&lt;p&gt;Now I'll give you a short example with 2D array and how it's represents contiguously in memory:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[,] my2dArray = { {&lt;span class="Number"&gt;1&lt;/span&gt;, &lt;span class="Number"&gt;2&lt;/span&gt;, &lt;span class="Number"&gt;3&lt;/span&gt;}, {&lt;span class="Number"&gt;4&lt;/span&gt;, &lt;span class="Number"&gt;5&lt;/span&gt;, &lt;span class="Number"&gt;6&lt;/span&gt;} };
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The result will be:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;1, 2, 3
+
+4, 5 ,6
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We have 6 numbers separated in 2 rows (3 numbers per row).&lt;/p&gt;
+&lt;p&gt;If you want to use row-major order or column-major order you must to know the exact width and height of array, because the length of array will be width * height
+For example:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[] myArray = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[rowsNumber * columnsNumber];
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id="row-major-order"&gt;Row-Major order&lt;/h3&gt;
+&lt;p&gt;I use this way for representing two dimensional array. This is the formula for row-major order:&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;Element = currentRow * columnsNumber + currentColumn&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;And this is simple example:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;int &lt;/span&gt;rowsNumber = &lt;span class="Number"&gt;2&lt;/span&gt;, columnsNumber = &lt;span class="Number"&gt;3&lt;/span&gt;;
+&lt;span class="Keyword"&gt;int&lt;/span&gt;[,] my2DArray = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[rowsNumber, columnsNumber];
+&lt;span class="Keyword"&gt;int&lt;/span&gt;[] myArray = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[rowsNumber * columnsNumber];
+&lt;span class="Keyword"&gt;
+for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentRow = &lt;span class="Number"&gt;0&lt;/span&gt;; currentRow &lt; rowsNumber; currentRow++)
+{
+&lt;span class="Keyword"&gt;    for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentColumn = &lt;span class="Number"&gt;0&lt;/span&gt;; currentColumn &lt; columnsNumber; currentColumn++)
+    {
+        my2DArray[currentRow , currentColumn] = &lt;span class="Keyword"&gt;int&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Parse&lt;/span&gt;(&lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;ReadLine&lt;/span&gt;());
+    }
+}
+&lt;span class="Keyword"&gt;
+for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentRow = &lt;span class="Number"&gt;0&lt;/span&gt;; currentRow &lt; rowsNumber; currentRow++)
+{
+&lt;span class="Keyword"&gt;    for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentColumn = &lt;span class="Number"&gt;0&lt;/span&gt;; currentColumn &lt; columnsNumber; currentColumn++)
+    {
+        myArray[currentRow * columnsNumber + currentColumn] = my2DArray[currentRow, urrentColumn];
+&lt;span class="Keyword"&gt;        int &lt;/span&gt;value = myArray[currentRow * columnsNumber + currentColumn];
+&lt;span class="Identifier"&gt;        Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(value);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now in the memory there will be only one row with 6 elements (columns) not 2 rows with 3 elements (columns) per row.&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;The result is: 1, 2, 3, 4, 5, 6&lt;/p&gt;
+&lt;p&gt;*Input data: 1 2 3 4 5 6&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="column-major-order-vectorization"&gt;Column-Major order (vectorization)&lt;/h3&gt;
+&lt;p&gt;This type of representing is more popular as &amp;quot;vectorization&amp;quot;, because you make all columns from the array to be 1D array (vector). This is the formula for column-major order:&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;Element = currentColumn * rowsNumber + currentRow&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;int &lt;/span&gt;rowsNumber = &lt;span class="Number"&gt;2&lt;/span&gt;, columnsNumber = &lt;span class="Number"&gt;3&lt;/span&gt;;
+&lt;span class="Keyword"&gt;int&lt;/span&gt;[,] my2DArray = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[rowsNumber, columnsNumber];
+&lt;span class="Keyword"&gt;int&lt;/span&gt;[] myArray = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Keyword"&gt;int&lt;/span&gt;[rowsNumber * columnsNumber];
+&lt;span class="Keyword"&gt;
+for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentRow = &lt;span class="Number"&gt;0&lt;/span&gt;; currentRow &lt; rowsNumber; currentRow++)
+{
+&lt;span class="Keyword"&gt;    for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentColumn = &lt;span class="Number"&gt;0&lt;/span&gt;; currentColumn &lt; columnsNumber; currentColumn++)
+    {
+        my2DArray[currentRow , currentColumn] = &lt;span class="Keyword"&gt;int&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Parse&lt;/span&gt;(&lt;span class="Identifier"&gt;Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;ReadLine&lt;/span&gt;());
+    }
+}
+&lt;span class="Keyword"&gt;
+for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentRow = &lt;span class="Number"&gt;0&lt;/span&gt;; currentRow &lt; rowsNumber; currentRow++)
+{
+&lt;span class="Keyword"&gt;    for &lt;/span&gt;(&lt;span class="Keyword"&gt;int &lt;/span&gt;currentColumn = &lt;span class="Number"&gt;0&lt;/span&gt;; currentColumn &lt; columnsNumber; currentColumn++)
+    {
+        myArray[currentColumn * rowsNumber + currentRow] = my2DArray[currentRow, urrentColumn];
+&lt;span class="Keyword"&gt;        int &lt;/span&gt;value = myArray[currentColumn * rowsNumber + currentRow];
+&lt;span class="Identifier"&gt;        Console&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WriteLine&lt;/span&gt;(value);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now in the memory there will be only one row with 6 elements (columns).&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;The result is: 1, 4, 2, 5, 3, 6&lt;/p&gt;
+&lt;p&gt;*Input data: 1 2 3 4 5 6&lt;/p&gt;
+&lt;/blockquote&gt;
+</content:encoded>
+		</item>
+		<item>
+			<title>Single page application with Kendo UI</title>
+			<link>http://ssnenov.github.io/posts/single-page-application-with-kendo-ui</link>
+			<description>&lt;p&gt;Recently single page applications popularity are growing and this is the reason that i wrote this post. Kendo released new version before week ago and there are some new features like ColorPicker, Tooltip, Multiselect and&amp;nbsp;possibility to make Single-Page Application with their framework. In this post I will show you the pros and cons of SPA(Single-page application) and a simple demo using Kendo UI framework.&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/single-page-application-with-kendo-ui</guid>
+			<pubDate>Sat, 30 Mar 2013 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;Recently single page applications popularity are growing and this is the reason that i wrote this post. Kendo released new version before week ago and there are some new features like ColorPicker, Tooltip, Multiselect and possibility to make Single-Page Application with their framework. In this post I will show you the pros and cons of SPA(Single-page application) and a simple demo using Kendo UI framework.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/spa.jpg" class="img-fluid" alt="Single page application" /&gt;&lt;/p&gt;
+&lt;h2 id="what-is-spa"&gt;What is SPA&lt;/h2&gt;
+&lt;p&gt;Shortly SPA is combinations of HTML, JavaScript and CSS that retrieves code once. Applications has only one page that's separated in different parts. When user interacts the script will load different parts to the screen without making requests to the server (in some cases it's possible to have AJAX requests). This makes SPA very light and fast web application. SPA likes Single Document Interface (SDI) presentation technique popular in native desktop applications.&lt;/p&gt;
+&lt;h2 id="pros-and-cons"&gt;Pros and Cons&lt;/h2&gt;
+&lt;h3 id="pros"&gt;Pros&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Fast and low traffic of data - user doesn't need to refresh the page; data can retrives with AJAX&lt;/li&gt;
+&lt;li&gt;Easy to design - it's easier to design one page than many pages (templates)&lt;/li&gt;
+&lt;li&gt;SEO - you will receive the same page rank from searching engine like multi page app; if you have rich content on the page web spiders will gave you bigger PR&lt;/li&gt;
+&lt;li&gt;SPA is perfect for advertisement for one product (like a flyer)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="cons"&gt;Cons&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;If you have a lot of information on page, it will loading slower&lt;/li&gt;
+&lt;li&gt;You should to use some scripting (in the most of cases - libraries)&lt;/li&gt;
+&lt;li&gt;Switching the different parts of the page is possible to be laggy if you have a lot of materials&lt;/li&gt;
+&lt;li&gt;Single-page app developers spend more time and energy to merge all the information in one page and making to look pretty good&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="simple-demo-with-kendo-ui"&gt;Simple demo with Kendo UI&lt;/h2&gt;
+&lt;h3 id="creating-html"&gt;1. Creating html&lt;/h3&gt;
+&lt;p&gt;This simple html code is core of our SPA. Highlighted row (with green)  is one of the most important part of our app. We have section, navigation and application divs. We'll use application div for the layout of our app where we'll put our content.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;header&amp;gt;
+    &amp;lt;h2&amp;gt;Single page app with Kendo UI&amp;lt;/h2&amp;gt;
+&amp;lt;/header&amp;gt;
+&amp;lt;div id=&amp;quot;section&amp;quot;&amp;gt;
+    &amp;lt;nav&amp;gt;
+        &amp;lt;ul&amp;gt;
+            &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showHome&amp;quot; href=&amp;quot;#&amp;quot;&amp;gt;Home&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showCars&amp;quot; href=&amp;quot;#&amp;quot;&amp;gt;My Cars&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showAboutme&amp;quot; href=&amp;quot;#&amp;quot;&amp;gt;About me&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+        &amp;lt;/ul&amp;gt;
+    &amp;lt;/nav&amp;gt;
+    &amp;lt;div id=&amp;quot;application&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;/div&amp;gt;
+&amp;lt;script id=&amp;quot;home&amp;quot; type=&amp;quot;text/kendo-tmpl&amp;quot;&amp;gt;
+    &amp;lt;div&amp;gt;Welcome to my Single-Page Application with Kendo UI&amp;lt;/div&amp;gt;
+&amp;lt;/script&amp;gt;
+&amp;lt;script id=&amp;quot;myCars&amp;quot; type=&amp;quot;text/kendo-tmpl&amp;quot;&amp;gt;
+    &amp;lt;div&amp;gt;
+    &amp;lt;img id=&amp;quot;carPicture&amp;quot; data-bind=&amp;quot;attr: { src: pictureUrl}&amp;quot; /&amp;gt;
+        &amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: name&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: model&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: cost&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
+&amp;lt;/script&amp;gt;
+&amp;lt;script id=&amp;quot;aboutMe&amp;quot; type=&amp;quot;text/kendo-tmpl&amp;quot;&amp;gt;
+    &amp;lt;div&amp;gt;Hi guys I'm Simeon Nenov You can visit my blog at &amp;lt;a href=&amp;quot;http://ssnenov.wordpress.com&amp;quot;&amp;gt;http://ssnenov.wordpress.com&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id="making-view-models"&gt;2. Making view models&lt;/h3&gt;
+&lt;p&gt;Now it's time to show you how to make our view model using Kendo MVVM (You can see some demos here). You can use here Kendo datasource and transport object to make AJAX request to the server for dynamic content. But we'll use static data without datasource. Our carsViewModel has got four properties: name, model, cost, pictureUrl that we are displaying, using data-bind attribute.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;img id=&amp;quot;carPicture&amp;quot; alt=&amp;quot;&amp;quot; data-bind=&amp;quot;attr: { src: pictureUrl}&amp;quot; /&amp;gt;
+&amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: name&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: model&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;div id=&amp;quot;Name&amp;quot; data-bind=&amp;quot;text: cost&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var carsViewModel = new kendo.observable({
+    name: &amp;quot;Audi&amp;quot;,
+    model: &amp;quot;A8&amp;quot;,
+    cost: 200000,
+    pictureUrl: &amp;quot;http://d3403mtifmmdhn.cloudfront.net/new_experience_touts/images/49/original/1MYCO_A8_Photos_Tout_13TDI_A8b002x_r8_RGB.jpg?1342493775&amp;quot;
+ });
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id="views-and-layouts"&gt;3. Views and layouts&lt;/h3&gt;
+&lt;h4 id="what-is-view-and-layout"&gt;What is view and layout?&lt;/h4&gt;
+&lt;p&gt;With instances of View class you can handling DOM events, making data binding or you can change the type of element using tagName with the following syntax:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var view = new kendo.View(&amp;quot;Hi!&amp;quot;, { tagName: &amp;quot;span&amp;quot; });
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The Layout class inherits from View class and have additional functionality to render other views. Simple you can render layout as view and the result will be nested layouts. This following code should to add into your script file:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;var viewHome = new kendo.View(&amp;quot;#home&amp;quot;);
+var viewCars = new kendo.View(&amp;quot;#myCars&amp;quot;, {model: carsViewModel});
+var viewAboutMe = new kendo.View(&amp;quot;#aboutMe&amp;quot;);
+
+var layout = new kendo.Layout(&amp;quot;&amp;lt;section id=&amp;quot;content&amp;quot;&amp;gt;&amp;lt;/section&amp;gt;&amp;quot;)
+
+layout.render($(&amp;quot;#application&amp;quot;));
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;At the first three rows I declared our views.&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;Constructor kendo.View has two parameters: kendo.View(&amp;lt;#id or html code&amp;gt;, ).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;After views I declared our layout and I rendered #application as layout with following code:
+&lt;code&gt;layout.render($(&amp;quot;#application&amp;quot;));&lt;/code&gt;&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;Constructor kendo.Layout has one parameter: kendo.Layout(&amp;lt;#id or html code&amp;gt;).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;You can use many views and layouts without limitations but my recommendation is to separate them in different files. For example views.js and layouts.js.&lt;/p&gt;
+&lt;h3 id="implementing-routes"&gt;4. Implementing routes&lt;/h3&gt;
+&lt;p&gt;With Kendo UI we also can make router which navigates user between the application pages. To make your router you should to make three steps:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Router initializing&lt;/li&gt;
+&lt;li&gt;Setting routes&lt;/li&gt;
+&lt;li&gt;Starting the router
+&lt;ol&gt;
+&lt;li&gt;Router initializing &lt;code&gt;var router = new kendo.Router();&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Setting routes &lt;code&gt;router.route(&amp;quot;/openme&amp;quot;, function() { alert(&amp;quot;Hello world!&amp;quot;); });&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Starting the router &lt;code&gt;$(function() { router.start(); });&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;After these three steps we have router. Now if we open our page and add &amp;quot;#/openme&amp;quot; after URL then we'll see alert with text: &amp;quot;Hello world!&amp;quot;.&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;For example: mywebsite.com#/openme&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This is very simple way how to make your routes but you can use more functionality like &amp;quot;route parameters&amp;quot;, &amp;quot;optional route parameters&amp;quot;, &amp;quot;route navigation&amp;quot; and etc.&lt;/p&gt;
+&lt;h4 id="parameters"&gt;Parameters&lt;/h4&gt;
+&lt;p&gt;To set parameters in your router just add &amp;quot;:&amp;quot; before the parameter name and add in your function parameters with the same name.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;router.route(&amp;quot;/openme/:name&amp;quot;, function(name) {
+   alert(&amp;quot;Hello &amp;quot; + name);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The result from previews code will be alert with text: &amp;quot;Hello John&amp;quot;. We also can have many parameters:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;router.route(&amp;quot;/items/:category/:id&amp;quot;, function(category, id) {...
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4 id="optional-parameters"&gt;Optional parameters&lt;/h4&gt;
+&lt;p&gt;Difference here is brackets. You have to put bracket before and after parameter name.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;router.route(&amp;quot;/items(/:category)(/:id)&amp;quot;, function(category, id) {
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You can see more about routing at &lt;a href="http://docs.kendoui.com/getting-started/framework/spa/router"&gt;Kendo UI documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 id="adding-some-styles"&gt;5. Adding some styles&lt;/h3&gt;
+&lt;p&gt;I added some styles, Kendo UI Menu and some content to my application and now we are ready with our SPA. You can see the result &lt;a href="http://jsfiddle.net/nP9fw/embedded/result/"&gt;here&lt;/a&gt; and source code &lt;a href="http://jsfiddle.net/nP9fw/"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;* I used jQuery &amp;quot;on&amp;quot; function to handling click event on Kendo UI Menu because in jsfiddle.net I can't make routing. If you download my source code and you want to use routing you have to delete these rows:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-javascript"&gt;$(&amp;quot;#showHome&amp;quot;).on(&amp;quot;click&amp;quot;, function (){ layout.showIn(&amp;quot;#content&amp;quot;, viewHome); });
+$(&amp;quot;#showCars&amp;quot;).on(&amp;quot;click&amp;quot;, function (){ layout.showIn(&amp;quot;#content&amp;quot;, viewCars); });
+$(&amp;quot;#showAboutme&amp;quot;).on(&amp;quot;click&amp;quot;, function (){ layout.showIn(&amp;quot;#content&amp;quot;, viewAboutMe); });
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and make your link compatible with your routes:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;ul&amp;gt;
+    &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showHome&amp;quot; href=&amp;quot;#&amp;quot;&amp;gt;Home&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+    &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showCars&amp;quot; href=&amp;quot;#/mycars&amp;quot;&amp;gt;My Cars&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+    &amp;lt;li&amp;gt;&amp;lt;a id=&amp;quot;showAboutme&amp;quot; href=&amp;quot;#/aboutme&amp;quot;&amp;gt;About me&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+&amp;lt;/ul&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+</content:encoded>
+		</item>
+	</channel>
+</rss>

@@ -1,0 +1,192 @@
+﻿<!DOCTYPE html>
+<!--
+	Stellar by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html lang="en">
+	<head>
+		<title>Simeon Nenov&#x27;s blog - Stop using .Result or .Wait() on tasks and why it&#x27;s dangerous</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="/assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="/assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="/assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="/assets/css/ie8.css" /><![endif]-->
+
+		<meta name="description" content="Welcome!" />
+		<link type="application/rss+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.rss" />
+				<link type="application/atom+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.atom" />
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<!--<link rel="apple-touch-icon" href="/images/logo.png">-->
+
+		<meta name="application-name" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-tooltip" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-starturl" content="/" />
+
+		<meta property="og:title" content="Simeon Nenov&#x27;s blog - Stop using .Result or .Wait() on tasks and why it&#x27;s dangerous" /> 
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="http://ssnenov.github.io/posts/stop-using-result-and-wait-and-why-it-is-dangerous" />
+		<!-- TODO: More social graph meta tags -->
+        <link rel="stylesheet" href="/assets/css/csharp-dark.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-39829879-8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-39829879-8');
+</script>
+		
+	</head>
+
+	<body>
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Header -->
+
+    
+<header id="header">
+    <h1>Stop using .Result or .Wait() on tasks and why it&#x27;s dangerous</h1>
+    <hr/>     
+        <p><em>Published on Saturday, February 2, 2019</em></p>
+</header>
+
+			<!-- Nav -->
+			<nav id="nav">
+				<ul>
+					<li><strong><a href='/'>Simeon Nenov&#x27;s blog</a></strong></li>
+        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+
+				</ul>
+			</nav>
+
+			<!-- Main -->
+			<div id="main">
+
+				<!-- Content -->
+					<section id="content" class="main">
+						
+
+<p>I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.</p>
+<p>Let's get straight to the point.</p>
+<p>Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &quot;use async/await all the way down&quot; with complex explanations. But why not opposite - using Result or Wait()? Because of potential &quot;thread starvation&quot; and/or &quot;deadlock&quot;. Without any examples it is not giving enough light on this topic to me. And you, right?</p>
+<p>Ok. Enough. If you are still with me let's get our hands dirty and see some code:</p>
+<pre class="language-csharp"><code><span class="Identifier">ThreadPool</span>.<span class="MethodIdentifier">SetMaxThreads</span>(<span class="Number">4</span>, <span class="Number">4</span>);
+<span class="Identifier">var </span>tasks = <span class="Keyword">new </span><span class="Identifier">List</span><<span class="Identifier">Task</span>>();
+<span class="Keyword">for </span>(<span class="Keyword">int </span>i = <span class="Number">0</span>; i < <span class="Number">4</span>; i++)
+{
+    tasks.<span class="MethodIdentifier">Add</span>(<span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => <span class="Keyword">new </span><span class="Identifier">HttpClient</span>().<span class="MethodIdentifier">GetStringAsync</span>(<span class="StringLiteral">"https://google.com"</span>).Result));
+}
+<span class="Identifier">
+Task</span>.<span class="MethodIdentifier">WhenAll</span>(tasks).<span class="MethodIdentifier">Wait</span>();
+</code></pre>
+<p>As initial step we are limiting all available threads in the threadpool. After that imagine that every Task that is ran is simulating a new asp.net request. So we have 4 requests coming simultaneously and 4 available threads which can process the requests. Every of this requests are trying to call a rest service or just doing something with somekind of internet resource by using HttpClient. So far, so good. Calling .Result or .Wait() is holding the current thread to wait the async task to complete and this is accomplished by something similar to <code>while(!IsCompleted){}</code> loop. Also every async I/O operation (in this case web request) is started by one thread and it's completed by the same OR different thread. There is no guarantee the same thread will make the request and complete it. So we have 4 request threads waiting for a Task to complete, no more available threads in the threadpool and when some of the web requests complete - guess what?</p>
+<center><img src="images/deadlock1.jpg"/></center>
+<p>You have no more available threads to complete the result of your async I/O operations. It's simple - you have all allocated threads in the pool busy with waiting (<code>while(IsCompleted){}</code>) tasks which are waiting for web requests to complete and web responses are waiting for available threads to complete.</p>
+<p>Now you have one strong reason why you have not to call .Result or .Wait().</p>
+<h2 id="solution-or-not-exactly">Solution (or not exactly?!)</h2>
+<p><a href="https://stackoverflow.com/questions/31954224/best-way-to-use-the-nice-net-4-5-httpclient-synchronously">Here</a> is what the community suggests to escape from the problem.</p>
+<pre class="language-csharp"><code><span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => <span class="Identifier">Client</span>.<span class="MethodIdentifier">PostAsync</span>()).Result;
+</code></pre>
+<p>The problem with the following code is that in our case it will start the web request in a new task which returns the web request's task itself. The result of the web request is queued as a task in the ThreadPoolTaskScheduler (default TaskScheduler). However, when the request completes and you don't have free threads to execute the scheduled task from the TaskScheduler then again you have...</p>
+<center><img src="images/deadlock3.jpg"/></center>
+<h2 id="thread-starvation">Thread starvation</h2>
+<p>Even you haven't deadlock you still has a problem using Result or Wait(). Let's move on and see what is thread starvation.</p>
+<p>If not all of the web requests to your server are performing async I/O operating using .Wait() or .Result then we can enter another interesting case. Waiting for the web request and completing the I/O (on another thread), we are using 2 of the available threads instead of one. This could lead to thread starvation and lower throughput of your application.</p>
+<pre class="language-csharp"><code><span class="Identifier">ThreadPool</span>.<span class="MethodIdentifier">SetMaxThreads</span>(<span class="Number">4</span>, <span class="Number">4</span>);
+<span class="Identifier">var </span>tasks = <span class="Keyword">new </span><span class="Identifier">List</span><<span class="Identifier">Task</span>>();
+<span class="Keyword">
+for </span>(<span class="Keyword">int </span>i = <span class="Number">0</span>; i < <span class="Number">4</span>; i++)
+{
+    tasks.<span class="MethodIdentifier">Add</span>(<span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => { <span class="Identifier">Thread</span>.<span class="MethodIdentifier">Sleep</span>(<span class="Number">10000</span>); <span class="Identifier">Console</span>.<span class="MethodIdentifier">WriteLine</span>(<span class="Identifier">DateTime</span>.Now); }));
+    tasks.<span class="MethodIdentifier">Add</span>(<span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => { <span class="Identifier">Thread</span>.<span class="MethodIdentifier">Sleep</span>(<span class="Number">5000</span>); <span class="Identifier">Console</span>.<span class="MethodIdentifier">WriteLine</span>(<span class="Identifier">DateTime</span>.Now); }));
+    tasks.<span class="MethodIdentifier">Add</span>(<span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => { <span class="Identifier">Thread</span>.<span class="MethodIdentifier">Sleep</span>(<span class="Number">2000</span>); <span class="Identifier">Console</span>.<span class="MethodIdentifier">WriteLine</span>(<span class="Identifier">DateTime</span>.Now); }));
+    tasks.<span class="MethodIdentifier">Add</span>(<span class="Identifier">Task</span>.<span class="MethodIdentifier">Run</span>(() => { <span class="Identifier">Thread</span>.<span class="MethodIdentifier">Sleep</span>(<span class="Number">1000</span>); <span class="Identifier">Console</span>.<span class="MethodIdentifier">WriteLine</span>(<span class="Identifier">DateTime</span>.Now); }));
+}
+<span class="Identifier">
+Task</span>.<span class="MethodIdentifier">WhenAll</span>(tasks).<span class="MethodIdentifier">Wait</span>();
+</code></pre>
+<p>In this example we are  simulating each asp.net request to take a few busy seconds to complete it's work (it could be waiting for internet resource with .Result). Here are the results of execution:</p>
+<pre><code>1/1/1900 10:04:57 AM
+1/1/1900 10:04:58 AM
+1/1/1900 10:05:01 AM
+1/1/1900 10:05:03 AM
+1/1/1900 10:05:03 AM
+1/1/1900 10:05:04 AM
+1/1/1900 10:05:06 AM
+1/1/1900 10:05:07 AM
+1/1/1900 10:05:08 AM
+1/1/1900 10:05:08 AM
+1/1/1900 10:05:09 AM
+1/1/1900 10:05:11 AM
+1/1/1900 10:05:12 AM
+1/1/1900 10:05:13 AM
+1/1/1900 10:05:13 AM
+1/1/1900 10:05:18 AM
+</code></pre>
+<p>You can see how the requests is pausing in groups and starving is in place. Now if we assume our task is slow enough then IsComplete is never or almost never equal to True, so we have something like while(true) that holds the thread for enough time. This will result in a spike for high CPU Queue Length without the processor actually working but instead <strong>.WAIT</strong>ing(). High CPU Queue Length could be a sign for thread starvation.</p>
+<h2 id="solution">Solution</h2>
+<p>I'm sorry for the bad news if you are a fan of .Result and Wait(), but the ultimate solution is to use async/await all the way down and never use blocking operations such as .Result and .Wait().</p>
+<h2 id="conclusion">Conclusion</h2>
+<center><img src="images/deadlock2.jpg"/></center>
+<p>I suggest you to not use async/await because it's just new (to you) or it's cool. If you don't understand how exactly works and the execution context of your code (asp.net, console app, wpf app and etc.) probably it's better to stick with the <strong>synchronous methods</strong> especially when working with asp.net or console application (wpf and winforms are kinds of a different story). Computers nowadays are extremely powerful to serve hundreds or thousands of requests per second without async I/O operation. If you need high scalability and your application should be high perform-ant then async/await is the way to go. But before that think on how you can improve your application (I think there would be tons of ways to do that) without the complexity of async/await. Another reason to not use it - it's hard to understand to newcomers and it's highly error prone even to most senior developers (you know - everybody has bugs).</p>
+<h3 id="resources">Resources</h3>
+<p><a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/">https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/</a></p>
+<p><a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html">https://windows10gadgets.pro/tipstricks/processorqueuelength.html</a></p>
+<p><a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/">https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/</a></p>
+
+
+  
+        <ul class="actions small">
+                    <li><a role="button" href="/tags/async.html" class="button small special">async</a></li>
+                    <li><a role="button" href="/tags/await.html" class="button small special">await</a></li>
+                    <li><a role="button" href="/tags/c%23.html" class="button small special">c#</a></li>
+                    <li><a role="button" href="/tags/deadlock.html" class="button small special">deadlock</a></li>
+                    <li><a role="button" href="/tags/Performance.html" class="button small special">Performance</a></li>
+                    <li><a role="button" href="/tags/threading.html" class="button small special">threading</a></li>
+        </ul>     
+ 
+					</section>
+
+			</div>
+
+			<!-- Footer -->
+			<footer id="footer">
+				<section>
+        <h2>Feeds</h2>
+        <ul class="actions">
+            <li><a href="/feed.rss" class="button small"><i class="fa fa-rss"></i> RSS Feed</a></li>
+                        <li><a href="/feed.atom" class="button small"><i class="fa fa-rss"></i> Atom Feed</a></li>
+        </ul>
+</section>
+<section>
+</section>
+<p class="copyright">
+    Copyright © 2019,
+    Design: <a href="http://html5up.net">HTML5 UP</a>,
+    <a href="https://wyam.io">Generated by Wyam</a>
+</p>
+			</footer>
+
+		</div>
+		
+		
+
+	<!-- Scripts -->
+	<script src="/assets/js/jquery.min.js"></script>
+	<script src="/assets/js/jquery.scrollex.min.js"></script>
+	<script src="/assets/js/jquery.scrolly.min.js"></script>
+	<script src="/assets/js/skel.min.js"></script>
+	<script src="/assets/js/util.js"></script>
+	<!--[if lte IE 8]><script src="/assets/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/assets/js/main.js"></script>
+
+	</body>
+	
+</html>

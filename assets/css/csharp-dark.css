@@ -1,0 +1,34 @@
+pre.language-csharp code {
+    background-color: black;
+}
+
+pre code > span.Keyword {
+    color: #268bd2;
+}
+pre code > span.Identifier {
+    color: #b58900;
+}
+pre code > span.Number {
+    color: #dc322f;
+}
+pre code > span.StringLiteral {
+    color: #dc322f;
+}
+pre code > span.MethodIdentifier {
+    color: #268bd2;
+}
+pre code > span.CharacterLiteral {
+    color: #dc322f;
+}
+
+pre code > span.DisabledText {
+    color: #93a1a1;
+}
+pre code > span.PreprocessorDirective {
+    color: #93a1a1;
+}
+
+/* comments could be nested in other token kinds, this is why they are not forced to be directly under "pre code" */
+pre code span.Comment {
+    color: #859900;
+}

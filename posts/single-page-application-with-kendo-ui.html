@@ -1,0 +1,261 @@
+﻿<!DOCTYPE html>
+<!--
+	Stellar by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html lang="en">
+	<head>
+		<title>Simeon Nenov&#x27;s blog - Single page application with Kendo UI</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="/assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="/assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="/assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="/assets/css/ie8.css" /><![endif]-->
+
+		<meta name="description" content="Welcome!" />
+		<link type="application/rss+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.rss" />
+				<link type="application/atom+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.atom" />
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<!--<link rel="apple-touch-icon" href="/images/logo.png">-->
+
+		<meta name="application-name" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-tooltip" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-starturl" content="/" />
+
+		<meta property="og:title" content="Simeon Nenov&#x27;s blog - Single page application with Kendo UI" /> 
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="http://ssnenov.github.io/posts/single-page-application-with-kendo-ui" />
+		<!-- TODO: More social graph meta tags -->
+        <link rel="stylesheet" href="/assets/css/csharp-dark.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-39829879-8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-39829879-8');
+</script>
+		
+	</head>
+
+	<body>
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Header -->
+
+    
+<header id="header">
+    <h1>Single page application with Kendo UI</h1>
+    <hr/>     
+        <p><em>Published on Saturday, March 30, 2013</em></p>
+</header>
+
+			<!-- Nav -->
+			<nav id="nav">
+				<ul>
+					<li><strong><a href='/'>Simeon Nenov&#x27;s blog</a></strong></li>
+        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+
+				</ul>
+			</nav>
+
+			<!-- Main -->
+			<div id="main">
+
+				<!-- Content -->
+					<section id="content" class="main">
+						
+
+<p>Recently single page applications popularity are growing and this is the reason that i wrote this post. Kendo released new version before week ago and there are some new features like ColorPicker, Tooltip, Multiselect and possibility to make Single-Page Application with their framework. In this post I will show you the pros and cons of SPA(Single-page application) and a simple demo using Kendo UI framework.</p>
+<p><img src="images/spa.jpg" class="img-fluid" alt="Single page application" /></p>
+<h2 id="what-is-spa">What is SPA</h2>
+<p>Shortly SPA is combinations of HTML, JavaScript and CSS that retrieves code once. Applications has only one page that's separated in different parts. When user interacts the script will load different parts to the screen without making requests to the server (in some cases it's possible to have AJAX requests). This makes SPA very light and fast web application. SPA likes Single Document Interface (SDI) presentation technique popular in native desktop applications.</p>
+<h2 id="pros-and-cons">Pros and Cons</h2>
+<h3 id="pros">Pros</h3>
+<ul>
+<li>Fast and low traffic of data - user doesn't need to refresh the page; data can retrives with AJAX</li>
+<li>Easy to design - it's easier to design one page than many pages (templates)</li>
+<li>SEO - you will receive the same page rank from searching engine like multi page app; if you have rich content on the page web spiders will gave you bigger PR</li>
+<li>SPA is perfect for advertisement for one product (like a flyer)</li>
+</ul>
+<h3 id="cons">Cons</h3>
+<ul>
+<li>If you have a lot of information on page, it will loading slower</li>
+<li>You should to use some scripting (in the most of cases - libraries)</li>
+<li>Switching the different parts of the page is possible to be laggy if you have a lot of materials</li>
+<li>Single-page app developers spend more time and energy to merge all the information in one page and making to look pretty good</li>
+</ul>
+<h2 id="simple-demo-with-kendo-ui">Simple demo with Kendo UI</h2>
+<h3 id="creating-html">1. Creating html</h3>
+<p>This simple html code is core of our SPA. Highlighted row (with green)  is one of the most important part of our app. We have section, navigation and application divs. We'll use application div for the layout of our app where we'll put our content.</p>
+<pre><code class="language-html">&lt;header&gt;
+    &lt;h2&gt;Single page app with Kendo UI&lt;/h2&gt;
+&lt;/header&gt;
+&lt;div id=&quot;section&quot;&gt;
+    &lt;nav&gt;
+        &lt;ul&gt;
+            &lt;li&gt;&lt;a id=&quot;showHome&quot; href=&quot;#&quot;&gt;Home&lt;/a&gt;&lt;/li&gt;
+            &lt;li&gt;&lt;a id=&quot;showCars&quot; href=&quot;#&quot;&gt;My Cars&lt;/a&gt;&lt;/li&gt;
+            &lt;li&gt;&lt;a id=&quot;showAboutme&quot; href=&quot;#&quot;&gt;About me&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/nav&gt;
+    &lt;div id=&quot;application&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;script id=&quot;home&quot; type=&quot;text/kendo-tmpl&quot;&gt;
+    &lt;div&gt;Welcome to my Single-Page Application with Kendo UI&lt;/div&gt;
+&lt;/script&gt;
+&lt;script id=&quot;myCars&quot; type=&quot;text/kendo-tmpl&quot;&gt;
+    &lt;div&gt;
+    &lt;img id=&quot;carPicture&quot; data-bind=&quot;attr: { src: pictureUrl}&quot; /&gt;
+        &lt;div id=&quot;Name&quot; data-bind=&quot;text: name&quot;&gt;&lt;/div&gt;
+        &lt;div id=&quot;Name&quot; data-bind=&quot;text: model&quot;&gt;&lt;/div&gt;
+        &lt;div id=&quot;Name&quot; data-bind=&quot;text: cost&quot;&gt;&lt;/div&gt;
+    &lt;/div&gt;
+&lt;/script&gt;
+&lt;script id=&quot;aboutMe&quot; type=&quot;text/kendo-tmpl&quot;&gt;
+    &lt;div&gt;Hi guys I'm Simeon Nenov You can visit my blog at &lt;a href=&quot;http://ssnenov.wordpress.com&quot;&gt;http://ssnenov.wordpress.com&lt;/a&gt;&lt;/div&gt;
+&lt;/script&gt;
+</code></pre>
+<h3 id="making-view-models">2. Making view models</h3>
+<p>Now it's time to show you how to make our view model using Kendo MVVM (You can see some demos here). You can use here Kendo datasource and transport object to make AJAX request to the server for dynamic content. But we'll use static data without datasource. Our carsViewModel has got four properties: name, model, cost, pictureUrl that we are displaying, using data-bind attribute.</p>
+<pre><code class="language-html">&lt;img id=&quot;carPicture&quot; alt=&quot;&quot; data-bind=&quot;attr: { src: pictureUrl}&quot; /&gt;
+&lt;div id=&quot;Name&quot; data-bind=&quot;text: name&quot;&gt;&lt;/div&gt;
+&lt;div id=&quot;Name&quot; data-bind=&quot;text: model&quot;&gt;&lt;/div&gt;
+&lt;div id=&quot;Name&quot; data-bind=&quot;text: cost&quot;&gt;&lt;/div&gt;
+</code></pre>
+<pre><code class="language-javascript">var carsViewModel = new kendo.observable({
+    name: &quot;Audi&quot;,
+    model: &quot;A8&quot;,
+    cost: 200000,
+    pictureUrl: &quot;http://d3403mtifmmdhn.cloudfront.net/new_experience_touts/images/49/original/1MYCO_A8_Photos_Tout_13TDI_A8b002x_r8_RGB.jpg?1342493775&quot;
+ });
+</code></pre>
+<h3 id="views-and-layouts">3. Views and layouts</h3>
+<h4 id="what-is-view-and-layout">What is view and layout?</h4>
+<p>With instances of View class you can handling DOM events, making data binding or you can change the type of element using tagName with the following syntax:</p>
+<pre><code class="language-javascript">var view = new kendo.View(&quot;Hi!&quot;, { tagName: &quot;span&quot; });
+</code></pre>
+<p>The Layout class inherits from View class and have additional functionality to render other views. Simple you can render layout as view and the result will be nested layouts. This following code should to add into your script file:</p>
+<pre><code class="language-javascript">var viewHome = new kendo.View(&quot;#home&quot;);
+var viewCars = new kendo.View(&quot;#myCars&quot;, {model: carsViewModel});
+var viewAboutMe = new kendo.View(&quot;#aboutMe&quot;);
+
+var layout = new kendo.Layout(&quot;&lt;section id=&quot;content&quot;&gt;&lt;/section&gt;&quot;)
+
+layout.render($(&quot;#application&quot;));
+</code></pre>
+<p>At the first three rows I declared our views.</p>
+<blockquote class="blockquote">
+<p>Constructor kendo.View has two parameters: kendo.View(&lt;#id or html code&gt;, ).</p>
+</blockquote>
+<p>After views I declared our layout and I rendered #application as layout with following code:
+<code>layout.render($(&quot;#application&quot;));</code></p>
+<blockquote class="blockquote">
+<p>Constructor kendo.Layout has one parameter: kendo.Layout(&lt;#id or html code&gt;).</p>
+</blockquote>
+<p>You can use many views and layouts without limitations but my recommendation is to separate them in different files. For example views.js and layouts.js.</p>
+<h3 id="implementing-routes">4. Implementing routes</h3>
+<p>With Kendo UI we also can make router which navigates user between the application pages. To make your router you should to make three steps:</p>
+<ol>
+<li>Router initializing</li>
+<li>Setting routes</li>
+<li>Starting the router
+<ol>
+<li>Router initializing <code>var router = new kendo.Router();</code></li>
+<li>Setting routes <code>router.route(&quot;/openme&quot;, function() { alert(&quot;Hello world!&quot;); });</code></li>
+<li>Starting the router <code>$(function() { router.start(); });</code></li>
+</ol>
+</li>
+</ol>
+<p>After these three steps we have router. Now if we open our page and add &quot;#/openme&quot; after URL then we'll see alert with text: &quot;Hello world!&quot;.</p>
+<blockquote class="blockquote">
+<p>For example: mywebsite.com#/openme</p>
+</blockquote>
+<p>This is very simple way how to make your routes but you can use more functionality like &quot;route parameters&quot;, &quot;optional route parameters&quot;, &quot;route navigation&quot; and etc.</p>
+<h4 id="parameters">Parameters</h4>
+<p>To set parameters in your router just add &quot;:&quot; before the parameter name and add in your function parameters with the same name.</p>
+<pre><code class="language-javascript">router.route(&quot;/openme/:name&quot;, function(name) {
+   alert(&quot;Hello &quot; + name);
+}
+</code></pre>
+<p>The result from previews code will be alert with text: &quot;Hello John&quot;. We also can have many parameters:</p>
+<pre><code class="language-javascript">router.route(&quot;/items/:category/:id&quot;, function(category, id) {...
+</code></pre>
+<h4 id="optional-parameters">Optional parameters</h4>
+<p>Difference here is brackets. You have to put bracket before and after parameter name.</p>
+<pre><code class="language-javascript">router.route(&quot;/items(/:category)(/:id)&quot;, function(category, id) {
+</code></pre>
+<p>You can see more about routing at <a href="http://docs.kendoui.com/getting-started/framework/spa/router">Kendo UI documentation</a>.</p>
+<h3 id="adding-some-styles">5. Adding some styles</h3>
+<p>I added some styles, Kendo UI Menu and some content to my application and now we are ready with our SPA. You can see the result <a href="http://jsfiddle.net/nP9fw/embedded/result/">here</a> and source code <a href="http://jsfiddle.net/nP9fw/">here</a>.</p>
+<p>* I used jQuery &quot;on&quot; function to handling click event on Kendo UI Menu because in jsfiddle.net I can't make routing. If you download my source code and you want to use routing you have to delete these rows:</p>
+<pre><code class="language-javascript">$(&quot;#showHome&quot;).on(&quot;click&quot;, function (){ layout.showIn(&quot;#content&quot;, viewHome); });
+$(&quot;#showCars&quot;).on(&quot;click&quot;, function (){ layout.showIn(&quot;#content&quot;, viewCars); });
+$(&quot;#showAboutme&quot;).on(&quot;click&quot;, function (){ layout.showIn(&quot;#content&quot;, viewAboutMe); });
+</code></pre>
+<p>and make your link compatible with your routes:</p>
+<pre><code class="language-html">&lt;ul&gt;
+    &lt;li&gt;&lt;a id=&quot;showHome&quot; href=&quot;#&quot;&gt;Home&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a id=&quot;showCars&quot; href=&quot;#/mycars&quot;&gt;My Cars&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a id=&quot;showAboutme&quot; href=&quot;#/aboutme&quot;&gt;About me&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</code></pre>
+
+
+  
+        <ul class="actions small">
+                    <li><a role="button" href="/tags/ajax.html" class="button small special">ajax</a></li>
+                    <li><a role="button" href="/tags/css.html" class="button small special">css</a></li>
+                    <li><a role="button" href="/tags/html.html" class="button small special">html</a></li>
+                    <li><a role="button" href="/tags/JavaScript.html" class="button small special">JavaScript</a></li>
+                    <li><a role="button" href="/tags/Kendo-UI.html" class="button small special">Kendo UI</a></li>
+                    <li><a role="button" href="/tags/Programming.html" class="button small special">Programming</a></li>
+                    <li><a role="button" href="/tags/Single-Page-Application.html" class="button small special">Single-Page Application</a></li>
+                    <li><a role="button" href="/tags/Web-application.html" class="button small special">Web application</a></li>
+        </ul>     
+ 
+					</section>
+
+			</div>
+
+			<!-- Footer -->
+			<footer id="footer">
+				<section>
+        <h2>Feeds</h2>
+        <ul class="actions">
+            <li><a href="/feed.rss" class="button small"><i class="fa fa-rss"></i> RSS Feed</a></li>
+                        <li><a href="/feed.atom" class="button small"><i class="fa fa-rss"></i> Atom Feed</a></li>
+        </ul>
+</section>
+<section>
+</section>
+<p class="copyright">
+    Copyright © 2019,
+    Design: <a href="http://html5up.net">HTML5 UP</a>,
+    <a href="https://wyam.io">Generated by Wyam</a>
+</p>
+			</footer>
+
+		</div>
+		
+		
+
+	<!-- Scripts -->
+	<script src="/assets/js/jquery.min.js"></script>
+	<script src="/assets/js/jquery.scrollex.min.js"></script>
+	<script src="/assets/js/jquery.scrolly.min.js"></script>
+	<script src="/assets/js/skel.min.js"></script>
+	<script src="/assets/js/util.js"></script>
+	<!--[if lte IE 8]><script src="/assets/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/assets/js/main.js"></script>
+
+	</body>
+	
+</html>

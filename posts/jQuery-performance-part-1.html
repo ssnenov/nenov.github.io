@@ -1,0 +1,190 @@
+﻿<!DOCTYPE html>
+<!--
+	Stellar by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html lang="en">
+	<head>
+		<title>Simeon Nenov&#x27;s blog - jQuery performance - part 1 [Selectors]</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="/assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="/assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="/assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="/assets/css/ie8.css" /><![endif]-->
+
+		<meta name="description" content="Welcome!" />
+		<link type="application/rss+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.rss" />
+				<link type="application/atom+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.atom" />
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<!--<link rel="apple-touch-icon" href="/images/logo.png">-->
+
+		<meta name="application-name" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-tooltip" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-starturl" content="/" />
+
+		<meta property="og:title" content="Simeon Nenov&#x27;s blog - jQuery performance - part 1 [Selectors]" /> 
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="http://ssnenov.github.io/posts/jQuery-performance-part-1" />
+		<!-- TODO: More social graph meta tags -->
+        <link rel="stylesheet" href="/assets/css/csharp-dark.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-39829879-8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-39829879-8');
+</script>
+		
+	</head>
+
+	<body>
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Header -->
+
+    
+<header id="header">
+    <h1>jQuery performance - part 1 [Selectors]</h1>
+    <hr/>     
+        <p><em>Published on Monday, July 22, 2013</em></p>
+</header>
+
+			<!-- Nav -->
+			<nav id="nav">
+				<ul>
+					<li><strong><a href='/'>Simeon Nenov&#x27;s blog</a></strong></li>
+        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+
+				</ul>
+			</nav>
+
+			<!-- Main -->
+			<div id="main">
+
+				<!-- Content -->
+					<section id="content" class="main">
+						
+
+<h2 id="selecting-element-by-id-class-attribute">Selecting element by id &amp; class attribute</h2>
+<p>If you are writing a jQuery plugin/framework or you want better performance of your code you will find the post as interesting.</p>
+<h3 id="use-id-attribute-as-much-as-possible">Use id attribute as much as possible!</h3>
+<p>The best way to select an element from the DOM is using an id attribute. Selecting an element in this way $(&quot;#myId&quot;) calls the browser javascript engine using getElementById() function. The function getElementById() returns reference to the first element object in document by it's id. If the element with the specific id isn't found in the document the function returns null.</p>
+<p>Let's see the following code:</p>
+<pre><code class="language-html">&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.js&quot;&gt;&lt;/script&gt;
+&lt;div id=&quot;#myId&quot;&gt;&lt;/div&gt;
+&lt;script&gt;
+    console.time('selecting by id');
+    for(var i = 0; i &lt; 100000; i++)
+    {
+        var element = $('#myId');
+    }
+    console.timeEnd('selecting by id');
+&lt;/script&gt;
+</code></pre>
+<p>The average result of executing the code is 292.11ms (The results have been observed on my PC. The performance will be different in different hardware configurations. The results varies and they might depends on version of jQuery, the actual performance of your system and so on). Now lets see what will be the performance when we are selecting by class name.</p>
+<h3 id="performance-selecting-by-class-name">Performance selecting by class name</h3>
+<pre><code class="language-html">&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.js&quot;&gt;&lt;/script&gt;
+&lt;div class=&quot;myClassName&quot;&gt;&lt;/div&gt;
+&lt;script&gt;
+    console.time('selecting by class name');
+    for(var i = 0; i &lt; 100000; i++)
+    {
+        var element = $('.myClassName');
+    }
+    console.timeEnd('selecting by class name');
+&lt;/script&gt;
+</code></pre>
+<p><strong>Wooooow!?!</strong>
+Average: 1278.92ms</p>
+<p><em>PS: I've had only one element in the DOM. Can you imagine if I have got 1500 elements in the document what will be the result? I don't want to imagine...</em></p>
+<h2 id="its-time-for-comparing-the-results">It's time for comparing the results</h2>
+<p><img src="images/jqueryselectors-performance.png" class="img-fluid" alt="" /></p>
+<p>It's a simple math ... 1278.92 - 292.11 = 986.81ms are the difference between these two simple selectors. I've made the test using the loop who repeats 100 000 times. If we divide the result of the 100 000 repeats we have 0.01ms(approximately difference) for each selection. I'm remaindering you that I've had only one element in the document and the tests have been made on my computer =&gt; this affects to the results(in most cases positively).</p>
+<h2 id="fastest-way-to-select-with-both-selectors">Fastest way to select with both selectors</h2>
+<p>People often doesn't know how to select the elements correctly. I see people to use:</p>
+<pre><code class="language-javascript">var element = $(&quot;#myId .myClassName .mySecondClass p input&quot;);
+</code></pre>
+<p>... usually and often it's the correct way to select elements but sometimes when you have many nested elements in the DOM the classic way isn't the fastest. Now I'm going to explain you how Sizzle works(Sizzle.js is JavaScript library who helps us to select elements from the DOM easily. When you get jQuery you have the sizzle inside by default). Sizzle reads the selectors from right to left. E.g. Sizzle gets all the inputs -&gt; which are in paragraphs -&gt; which are in elements with class &quot;mySecondClass&quot; -&gt; which are in elements with class &quot;myClassName&quot; -&gt; which are in element with Id &quot;myId&quot;. So long way to do it. For 100 000 selections of the element the average time is: 3584ms. There are several ways to select the same element. I'll show you some of them...</p>
+<pre><code class="language-javascript">var element = $(&quot;#myId&quot;).children(&quot;.myClassName&quot;).children(&quot;.mySecondClass&quot;).children(&quot;p input&quot;);
+</code></pre>
+<p>Now we get directly the element with id equals to &quot;myId&quot;. Using the children() function calls $.sibling() method that makes the operation slower. The test takes 15265ms for executing (again 100 000 selections).</p>
+<p>One of the fastest way to select the element from second or bigger level of the DOM without using children() is using find().</p>
+<p>The find() searches all inner levels of the DOM. Difference here is that the children() searches only the first level of parent. E.g.</p>
+<pre><code class="language-html">&lt;div id=&quot;first&quot;&gt;
+&lt;input type=&quot;text&quot; /&gt;&lt;/div&gt;
+&lt;script&gt;
+    $(function ()
+    {
+        var element = $(&quot;#first&quot;).children(&quot;input&quot;);
+    });
+&lt;/script&gt;
+</code></pre>
+<p>The children() will never find the input element. In this case you have to use the find() method.</p>
+<pre><code class="language-javascript">var element = $(&quot;#myId&quot;).find(&quot;.myClassName .mySecondClass p input&quot;);
+</code></pre>
+<p>I've selected the element 100 000 times using the find() and the average result was: 6219ms</p>
+<h3 id="the-results">The Results</h3>
+<p><img src="images/jqueryselectors-performance2.png" class="img-fluid" alt="" /></p>
+<h2 id="conclusion">Conclusion:</h2>
+<ol>
+<li>Use id attribute as much as possible</li>
+<li>If you want to search a child from second or bigger level in the DOM you have to use find() not children().</li>
+<li>Hint: Don't specify the type of searched element e.g. $(&quot;div.myClass&quot;)</li>
+</ol>
+
+
+  
+        <ul class="actions small">
+                    <li><a role="button" href="/tags/DOM.html" class="button small special">DOM</a></li>
+                    <li><a role="button" href="/tags/html.html" class="button small special">html</a></li>
+                    <li><a role="button" href="/tags/JavaScript.html" class="button small special">JavaScript</a></li>
+                    <li><a role="button" href="/tags/jQuery.html" class="button small special">jQuery</a></li>
+                    <li><a role="button" href="/tags/Performance.html" class="button small special">Performance</a></li>
+        </ul>     
+ 
+					</section>
+
+			</div>
+
+			<!-- Footer -->
+			<footer id="footer">
+				<section>
+        <h2>Feeds</h2>
+        <ul class="actions">
+            <li><a href="/feed.rss" class="button small"><i class="fa fa-rss"></i> RSS Feed</a></li>
+                        <li><a href="/feed.atom" class="button small"><i class="fa fa-rss"></i> Atom Feed</a></li>
+        </ul>
+</section>
+<section>
+</section>
+<p class="copyright">
+    Copyright © 2019,
+    Design: <a href="http://html5up.net">HTML5 UP</a>,
+    <a href="https://wyam.io">Generated by Wyam</a>
+</p>
+			</footer>
+
+		</div>
+		
+		
+
+	<!-- Scripts -->
+	<script src="/assets/js/jquery.min.js"></script>
+	<script src="/assets/js/jquery.scrollex.min.js"></script>
+	<script src="/assets/js/jquery.scrolly.min.js"></script>
+	<script src="/assets/js/skel.min.js"></script>
+	<script src="/assets/js/util.js"></script>
+	<!--[if lte IE 8]><script src="/assets/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/assets/js/main.js"></script>
+
+	</body>
+	
+</html>
