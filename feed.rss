@@ -5,8 +5,152 @@
 		<link>http://ssnenov.github.io/</link>
 		<description>Welcome!</description>
 		<copyright>2019</copyright>
-		<pubDate>Wed, 20 Feb 2019 19:25:56 GMT</pubDate>
-		<lastBuildDate>Wed, 20 Feb 2019 19:25:56 GMT</lastBuildDate>
+		<pubDate>Sat, 02 Mar 2019 09:46:44 GMT</pubDate>
+		<lastBuildDate>Sat, 02 Mar 2019 09:46:44 GMT</lastBuildDate>
+		<item>
+			<title>Ultimate Git setup for windows</title>
+			<link>http://ssnenov.github.io/posts/ultimate-git-setup-for-windows</link>
+			<description>&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.
+&lt;img src="images/Git-Setup-Preview.png" class="img-fluid" alt="Ultimate git setup for Windows"&gt;&lt;/p&gt;</description>
+			<guid>http://ssnenov.github.io/posts/ultimate-git-setup-for-windows</guid>
+			<pubDate>Sat, 02 Mar 2019 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;h2 id="introduction"&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.
+&lt;img src="images/Git-Setup-Preview.png" class="img-fluid" alt="Ultimate git setup for Windows" /&gt;&lt;/p&gt;
+&lt;h2 id="getting-started"&gt;Getting started&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href="#cmder"&gt;Cmder&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#alias-for-git"&gt;Alias for Git (g = git)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#git-aliases"&gt;Git aliases&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#git-tfs-aliases"&gt;Git-TFS aliases&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id="cmder"&gt;Cmder&lt;/h3&gt;
+&lt;p&gt;Download and install &lt;a href="http://cmder.net/"&gt;Cmder&lt;/a&gt;. I suggest to go with the full version.&lt;/p&gt;
+&lt;p&gt;Open cmder and press &lt;code&gt;Win + Alt + P&lt;/code&gt; to open settings. Make sure your default startup task is &lt;code&gt;{cmd::Cmder as Admin}&lt;/code&gt; by looking at &lt;code&gt;Startup&lt;/code&gt; section.&lt;/p&gt;
+&lt;p&gt;Download &lt;a href="https://github.com/ssnenov/ultimate-git-win/blob/master/powerline_prompt.lua"&gt;powerline_prompt.lua&lt;/a&gt; and &lt;a href="https://github.com/ssnenov/ultimate-git-win/blob/master/ultimate-git-win.lua"&gt;ultimate-git-win.lua&lt;/a&gt; from &lt;a href="https://github.com/ssnenov/ultimate-git-win"&gt;here&lt;/a&gt; in &lt;code&gt;%CMDER_ROOT%\config&lt;/code&gt;.&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;%CMDER_ROOR% is available only in the context of Cmder, so in order to find the Cmder's config folder run &lt;code&gt;echo %CMDER_ROOT%\config&lt;/code&gt; in Cmder.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Download and install &lt;a href="https://github.com/ssnenov/ultimate-git-win/raw/master/Anonymice%20Powerline.ttf"&gt;Anonymice Powerline.ttf&lt;/a&gt; font. Go to &lt;code&gt;Settings &amp;gt; Main &amp;gt; Main console font&lt;/code&gt; in Cmder and change it to &lt;code&gt;Anonymice Powerline&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Restart cmder to get the new settings take place.&lt;/p&gt;
+&lt;h4 id="git-gui-and-gitk-into-cmder"&gt;Git GUI and Gitk into Cmder&lt;/h4&gt;
+&lt;p&gt;Sometimes I need to view/track commits in &lt;code&gt;gitk&lt;/code&gt; or to view my staged/unstaged changes (double checking everything to be committed) in &lt;code&gt;git gui&lt;/code&gt;, so I've created a tasks with hotkeys to integrate them in cmder. Since they are integrated as part of your terminal you won't do window switching anymore.&lt;/p&gt;
+&lt;p&gt;Go to Cmder settings and open &lt;code&gt;Startup &amp;gt; Tasks&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Git GUI:&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/cmder-tasks.PNG" class="img-fluid" alt="Setting up git gui" /&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Create a new task&lt;/li&gt;
+&lt;li&gt;Name it &lt;code&gt;gitgui&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Use &lt;code&gt;/dir %CD%&lt;/code&gt; for task parameters&lt;/li&gt;
+&lt;li&gt;Add &lt;code&gt;-cur_console:s1T60V &amp;quot;%ConEmuDir%\..\git-for-windows\cmd\git-gui.exe&amp;quot;&lt;/code&gt; for command&lt;/li&gt;
+&lt;li&gt;Assign &lt;code&gt;Ctrl + G&lt;/code&gt; as a hotkey&lt;/li&gt;
+&lt;li&gt;Save the settings&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Gitk:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Create a new task named &lt;code&gt;gitk&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Use &lt;code&gt;/dir %CD%&lt;/code&gt; for task parameters.&lt;/li&gt;
+&lt;li&gt;Add &lt;code&gt;-cur_console:s1T60V &amp;quot;%ConEmuDir%\..\git-for-windows\cmd\gitk.exe&amp;quot;&lt;/code&gt; for command&lt;/li&gt;
+&lt;li&gt;Assign &lt;code&gt;Ctrl + K&lt;/code&gt; as a hotkey&lt;/li&gt;
+&lt;li&gt;Save the settings&lt;/li&gt;
+&lt;li&gt;Open Gitk by pressing &lt;code&gt;Ctrl + K&lt;/code&gt; and navigate to color preferences (&lt;code&gt;Edit &amp;gt; Preferences &amp;gt; Colors&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;And setup the colors as following (if you are using Monokai theme for cmder - default):
+&lt;ul&gt;
+&lt;li&gt;Background: 39 40 34&lt;/li&gt;
+&lt;li&gt;Foreground: 182 182 73&lt;/li&gt;
+&lt;li&gt;Select bg: 3 131 245&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src="images/gitk-colors.PNG" class="img-fluid" alt="Configuring gitk colors" /&gt;&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;&lt;em&gt;If you add commit or make any changes and want to refresh gitk, just click somewhere in the window and press &lt;code&gt;F5&lt;/code&gt;. The same applies for git gui.&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="alias-for-git"&gt;Alias for git&lt;/h3&gt;
+&lt;p&gt;Because I'm too busy (or lazy) to write &lt;code&gt;git&lt;/code&gt; every time to make an action, I have alias for that. So instead of writing &lt;code&gt;git status&lt;/code&gt;, I'm writing &lt;code&gt;g status&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Let me show you how to set up on your own:
+Open &lt;code&gt;%CMDER_ROOT%\config\user-aliases.cmd&lt;/code&gt; and add
+&lt;code&gt;g=git $*&lt;/code&gt; on a new line.&lt;/p&gt;
+&lt;h3 id="git-aliases"&gt;Git aliases&lt;/h3&gt;
+&lt;p&gt;In order to gain some speed when working with git you will need &lt;strong&gt;aliases&lt;/strong&gt; to &lt;strong&gt;do more with less&lt;/strong&gt;. You will became more efficient by typing less characters and executing multiple commands in a single shot. Some quick examples:&lt;/p&gt;
+&lt;hr /&gt;
+&lt;pre&gt;&lt;code&gt;git add --all
+git commit -m &amp;quot;Commit message&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Could be done by &lt;code&gt;g ca &amp;quot;Commit message&amp;quot;&lt;/code&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;&lt;code&gt;git checkout master&lt;/code&gt; could be &lt;code&gt;g com&lt;/code&gt; - it's 19 characters vs 5.&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h4 id="now-let-me-show-you-how-to-do-that"&gt;Now let me show you how to do that&lt;/h4&gt;
+&lt;p&gt;Open git config for edit (&lt;code&gt;%HOMEPATH%\.gitconfig&lt;/code&gt;) and add the following configurations:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;[pretty]
+  log = %C(dim magenta)%h%C(cyan)%d%C(reset) %C(yellow)[%C(dim green)%an%C(yellow)] %C(bold white)%s%C(reset) %C(reset)
+
+  [alias]
+  s = status -s
+  pl = pull -r
+  pls = !git stash &amp;amp;&amp;amp; git pull -r &amp;amp;&amp;amp; git stash pop # stash unstaged files, pull latest version and pop the stashed files
+  
+  d = difftool
+  mrt = mergetool
+
+  mr = merge
+  mrf = merge --no-ff
+
+  co = checkout
+  com = checkout master
+  cod = checkout develop
+
+  rebm = rebase master
+  rebd = rebase develop
+
+  br = branch
+
+  ai = add -i
+  ca = !git add --all &amp;amp;&amp;amp; git commit -m
+  c = commit -m
+  amend = commit --amend
+
+  flush = !git checkout . &amp;amp;&amp;amp; git clean -f -d
+  cln = clean -f
+  
+  r = reset
+  r1 = reset HEAD^
+  r2 = reset HEAD^^
+  r3 = reset HEAD^^^
+
+  l = log -12 --graph --pretty=log
+  pc = diff --cached # preview commit (staged changes)
+  prev = log HEAD -1 --pretty=log --stat #--name-status for short info
+
+  alias = !git config --list | grep 'alias\\.' | sed 's/alias\\.\\([^=]*\\)=\\(.*\\)/\\1\\t=&amp;gt; \\2/' | sort
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4 id="aliases-explanation"&gt;Aliases explanation&lt;/h4&gt;
+&lt;p&gt;I'll skip the obvious aliases like &lt;code&gt;s = status -s&lt;/code&gt; and explain the others:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;alias&lt;/code&gt; - lists all available aliases&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;pls&lt;/code&gt; - when you have local changes which are not committed but you want to take the latest version this alias is very helpful. It stashes all your changes, then pull the remote with rebase and pops the stashed changes&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;com&lt;/code&gt; - checking out master branch and &lt;code&gt;cod&lt;/code&gt; is checking out develop branch&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;rebm&lt;/code&gt; - rebasing with master branch&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ca&lt;/code&gt; - commit &amp;amp; add - adding all changes by using --all flag and commit them. Usage: &lt;code&gt;g ca &amp;quot;&amp;lt;Message&amp;gt;&amp;quot;&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;l&lt;/code&gt; - git log but using a pretty format to show the last 12 commits as graph&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;flush&lt;/code&gt; - Flushing everything - all changed files are checked out and all untracked files are cleaned&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;r&lt;/code&gt;, &lt;code&gt;r1&lt;/code&gt;, &lt;code&gt;r2&lt;/code&gt;, &lt;code&gt;r3&lt;/code&gt; - reset the stage, last commit, last 2 commits or last 3 commits&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;prev&lt;/code&gt; - display summary of changes from the previous commit (changed files, insertions / deletion). Just a quick way to check what is the last thing you have done before the holiday/weekend.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hlp&lt;/code&gt; - displays a quick cheatsheet (customized it for you)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id="clink-plugin"&gt;Clink plugin&lt;/h4&gt;
+&lt;p&gt;The file &lt;code&gt;ultimate-git-win.lua&lt;/code&gt; (you already have installed) is doing some magic by adding auto completions for all your aliases (including &lt;code&gt;g=git&lt;/code&gt;), files and branches. So if you want to write &lt;code&gt;g alias&lt;/code&gt; just write &lt;code&gt;g al&lt;/code&gt; and press tab - the rest will be autocompleted. The same is with &lt;code&gt;g co ma&lt;/code&gt; will be completed as &lt;code&gt;g co master&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Writing &lt;code&gt;g co origin/&lt;/code&gt; and pressing tab will display a list with all available branches, so you can pick one of them.&lt;/p&gt;
+&lt;h3 id="git-tfs-aliases"&gt;Git-TFS aliases&lt;/h3&gt;
+&lt;p&gt;I'm using git-tfs bridge to work with my TFS projects. To save some time I'm using aliases for git-tfs as well:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# TFS ailiases
+  checkin = tfs checkin     # check-in all commits as one changeset
+  rcheckin = tfs rcheckin --no-merge        # check-in all commits as separate changeset
+  latest = tfs pull -r      # getting latest version from TFS with rebase
+&lt;/code&gt;&lt;/pre&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Stop using .Result or .Wait() on tasks and why it's dangerous</title>
 			<link>http://ssnenov.github.io/posts/stop-using-result-and-wait-and-why-it-is-dangerous</link>
