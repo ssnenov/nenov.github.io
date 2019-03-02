@@ -5,18 +5,17 @@
 		<link>http://ssnenov.github.io/</link>
 		<description>Welcome!</description>
 		<copyright>2019</copyright>
-		<pubDate>Sat, 02 Mar 2019 09:46:44 GMT</pubDate>
-		<lastBuildDate>Sat, 02 Mar 2019 09:46:44 GMT</lastBuildDate>
+		<pubDate>Sat, 02 Mar 2019 09:55:58 GMT</pubDate>
+		<lastBuildDate>Sat, 02 Mar 2019 09:55:58 GMT</lastBuildDate>
 		<item>
 			<title>Ultimate Git setup for windows</title>
 			<link>http://ssnenov.github.io/posts/ultimate-git-setup-for-windows</link>
-			<description>&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.
-&lt;img src="images/Git-Setup-Preview.png" class="img-fluid" alt="Ultimate git setup for Windows"&gt;&lt;/p&gt;</description>
+			<description>&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.&lt;/p&gt;</description>
 			<guid>http://ssnenov.github.io/posts/ultimate-git-setup-for-windows</guid>
 			<pubDate>Sat, 02 Mar 2019 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;h2 id="introduction"&gt;Introduction&lt;/h2&gt;
-&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.
-&lt;img src="images/Git-Setup-Preview.png" class="img-fluid" alt="Ultimate git setup for Windows" /&gt;&lt;/p&gt;
+&lt;p&gt;I will show you my ultimate git setup for windows. You will read how to configure Cmder for higher productivity and take the power of aliases on steroids.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/Git-Setup-Preview.png" class="img-fluid" alt="Ultimate git setup for Windows" /&gt;&lt;/p&gt;
 &lt;h2 id="getting-started"&gt;Getting started&lt;/h2&gt;
 &lt;ol&gt;
 &lt;li&gt;&lt;a href="#cmder"&gt;Cmder&lt;/a&gt;&lt;/li&gt;
