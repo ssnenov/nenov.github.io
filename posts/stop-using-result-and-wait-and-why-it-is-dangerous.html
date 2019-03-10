@@ -75,7 +75,8 @@
 
 <p>I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.</p>
 <p>Let's get straight to the point.</p>
-<p>Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &quot;use async/await all the way down&quot; with complex explanations. But why not opposite - using Result or Wait()? Because of potential &quot;thread starvation&quot; and/or &quot;deadlock&quot;. Without any examples it is not giving enough light on this topic to me. And you, right?</p>
+<p>Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &quot;use async/await all the way down&quot; with complex explanations. But why not the opposite - using Result or Wait()? Because of potential &quot;thread starvation&quot; and/or &quot;deadlock&quot;. Without any examples it is not giving enough light on this topic to me. And you, right?</p>
+<p>The most common way to deadlock your application is when your have a synchronization context and the main thread is waiting to complete a task which will be completed when the main thread is ready/free to complete it. Stephen Cleary wrote a great <a href="http://blog.stephencleary.com/2012/07/dont-block-on-async-code.html">article</a> about this case. Also you can read <a href="return-task-instead-of-await.html">my article</a> with an example of deadlock with synchronization contexts. So there is no need to cover this case in more details because there are a tons of articles on this topic - just google it.</p>
 <p>Ok. Enough. If you are still with me let's get our hands dirty and see some code:</p>
 <pre class="language-csharp"><code><span class="Identifier">ThreadPool</span>.<span class="MethodIdentifier">SetMaxThreads</span>(<span class="Number">4</span>, <span class="Number">4</span>);
 <span class="Identifier">var </span>tasks = <span class="Keyword">new </span><span class="Identifier">List</span><<span class="Identifier">Task</span>>();
@@ -137,9 +138,12 @@ Task</span>.<span class="MethodIdentifier">WhenAll</span>(tasks).<span class="Me
 <center><img src="images/deadlock2.jpg"/></center>
 <p>I suggest you to not use async/await because it's just new (to you) or it's cool. If you don't understand how exactly works and the execution context of your code (asp.net, console app, wpf app and etc.) probably it's better to stick with the <strong>synchronous methods</strong> especially when working with asp.net or console application (wpf and winforms are kinds of a different story). Computers nowadays are extremely powerful to serve hundreds or thousands of requests per second without async I/O operation. If you need high scalability and your application should be high perform-ant then async/await is the way to go. But before that think on how you can improve your application (I think there would be tons of ways to do that) without the complexity of async/await. Another reason to not use it - it's hard to understand to newcomers and it's highly error prone even to most senior developers (you know - everybody has bugs).</p>
 <h3 id="resources">Resources</h3>
-<p><a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/">https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/</a></p>
-<p><a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html">https://windows10gadgets.pro/tipstricks/processorqueuelength.html</a></p>
-<p><a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/">https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/</a></p>
+<ul>
+<li><a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/">https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/</a></li>
+<li><a href="return-task-instead-of-await.html">Return a Task instead of awaiting it</a></li>
+<li><a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/">https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/</a></li>
+<li><a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html">https://windows10gadgets.pro/tipstricks/processorqueuelength.html</a></li>
+</ul>
 
 
   

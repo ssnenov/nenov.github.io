@@ -1,0 +1,182 @@
+﻿<!DOCTYPE html>
+<!--
+	Stellar by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html lang="en">
+	<head>
+		<title>Simeon Nenov&#x27;s blog - Return a Task instead of awaiting it</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="/assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="/assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="/assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="/assets/css/ie8.css" /><![endif]-->
+
+		<meta name="description" content="Welcome!" />
+		<link type="application/rss+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.rss" />
+				<link type="application/atom+xml" rel="alternate" title="Simeon Nenov&#x27;s blog" href="/feed.atom" />
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<!--<link rel="apple-touch-icon" href="/images/logo.png">-->
+
+		<meta name="application-name" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-tooltip" content="Simeon Nenov&#x27;s blog" />
+		<meta name="msapplication-starturl" content="/" />
+
+		<meta property="og:title" content="Simeon Nenov&#x27;s blog - Return a Task instead of awaiting it" /> 
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="http://ssnenov.github.io/posts/return-task-instead-of-await" />
+		<!-- TODO: More social graph meta tags -->
+        <link rel="stylesheet" href="/assets/css/csharp-dark.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-39829879-8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-39829879-8');
+</script>
+		
+	</head>
+
+	<body>
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Header -->
+
+    
+<header id="header">
+    <h1>Return a Task instead of awaiting it</h1>
+    <hr/>     
+        <p><em>Published on Sunday, March 10, 2019</em></p>
+</header>
+
+			<!-- Nav -->
+			<nav id="nav">
+				<ul>
+					<li><strong><a href='/'>Simeon Nenov&#x27;s blog</a></strong></li>
+        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+
+				</ul>
+			</nav>
+
+			<!-- Main -->
+			<div id="main">
+
+				<!-- Content -->
+					<section id="content" class="main">
+						
+
+<p>I will show you some reasons to return a task instead of awaiting it.</p>
+<p>Imaging you have the following case:</p>
+<pre class="language-csharp"><code><span class="Keyword">private </span><span class="Keyword">static </span><span class="Keyword">async </span><span class="Identifier">Task </span>WaitAsync() => <span class="Keyword">await </span><span class="Identifier">Task</span>.<span class="MethodIdentifier">Delay</span>(<span class="Number">100</span>);
+</code></pre>
+<p>First question that comes in my mind is why not returning directly the task instead of awaiting on it. Of course the first answer I have is - because it won't generate redundant state machine. So I've googled about this topic and I found just the same reason + an explanation that the code will be faster. It's is logically, in most cases less code means faster execution. This is a <strong>fantastic</strong> <a href="https://www.tabsoverspaces.com/233659-do-not-await-what-does-not-need-to-be-awaited">post</a> on this topic. One interesting point described in the article is that you haven't to return the task in case of disposable objects:</p>
+<pre class="language-csharp"><code><span class="Keyword">public </span><span class="Keyword">async </span><span class="Identifier">Task </span>FooBar()
+{
+<span class="Keyword">	using </span>(<span class="Identifier">var </span>foo = <span class="Keyword">new </span><span class="Identifier">Foo</span>())
+	{
+<span class="Keyword">		await </span><span class="MethodIdentifier">SomethingAsync</span>(foo);
+	}
+}
+</code></pre>
+<p>This is another example:</p>
+<pre class="language-csharp"><code><span class="Keyword">public </span><span class="Identifier">Task </span>GetDataAsync()
+{
+<span class="Keyword">	using </span>(<span class="Identifier">var </span>httpClient = <span class="Keyword">new </span><span class="Identifier">HttpClient</span>())
+	{
+<span class="Keyword">		return </span>httpClient.<span class="MethodIdentifier">GetStringAsync</span>(<span class="StringLiteral">"https://google.com"</span>);
+	}
+}
+</code></pre>
+<p>In this way <code>httpClient</code> will be disposed before the the async operation is completed. Using different types the async operation might be sent/start executed, but the callback/response won't be handled because the caller object is disposed. It cloud be possible to finish the async operation even the caller object is disposed, but keep in mind that this is implementation specific and it's better to not relay on this. So a <strong>good rule of thumb</strong>: don't use async/await when you play with disposable objects.</p>
+<p>However, thinking twice got me another reason to return the task instead of awaiting it - you are escaping from the deadlock hell. You can read more about it in my previous post - <a href="stop-using-result-and-wait-and-why-it-is-dangerous.html">Stop using .Result or .Wait() on tasks and why it's</a>.</p>
+<p>So imaging we have the following case:</p>
+<pre class="language-csharp"><code><span class="Keyword">private </span><span class="Keyword">void </span>button_Click(<span class="Keyword">object </span>sender, <span class="Identifier">RoutedEventArgs </span>e)
+{
+<span class="MethodIdentifier">    Delay</span>().<span class="MethodIdentifier">Wait</span>();
+<span class="Identifier">    MessageBox</span>.<span class="MethodIdentifier">Show</span>(<span class="StringLiteral">"Delay called."</span>);
+<span class="MethodIdentifier">
+    Delay2</span>().<span class="MethodIdentifier">Wait</span>();
+<span class="Identifier">    MessageBox</span>.<span class="MethodIdentifier">Show</span>(<span class="StringLiteral">"Delay2 called."</span>);
+<span class="MethodIdentifier">
+    Delay3</span>().<span class="MethodIdentifier">Wait</span>();
+<span class="Identifier">    MessageBox</span>.<span class="MethodIdentifier">Show</span>(<span class="StringLiteral">"Delay3 called."</span>);
+}
+<span class="Keyword">
+private </span><span class="Keyword">static </span><span class="Identifier">Task </span>Delay() => <span class="Identifier">Task</span>.<span class="MethodIdentifier">Delay</span>(<span class="Number">100</span>);
+<span class="Keyword">
+private </span><span class="Keyword">static </span><span class="Keyword">async </span><span class="Identifier">Task </span>Delay2() => <span class="Keyword">await </span><span class="Identifier">Task</span>.<span class="MethodIdentifier">Delay</span>(<span class="Number">100</span>).<span class="MethodIdentifier">ConfigureAwait</span>(<span class="Keyword">false</span>);
+<span class="Keyword">
+private </span><span class="Keyword">static </span><span class="Keyword">async </span><span class="Identifier">Task </span>Delay3() => <span class="Keyword">await </span><span class="Identifier">Task</span>.<span class="MethodIdentifier">Delay</span>(<span class="Number">100</span>);
+</code></pre>
+<p>When running the code you will never end with &quot;Delay3 called.&quot; message because you have deadlocked your application. In order to prevent the deadlock in <code>Delay2</code> method we are using <code>.ConfigureAwait(false)</code> which is described as a hack by Stephen Cleary. This is why it's better to return the task directly like in <code>Delay</code> method.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>These are the pros and cons of returning a task instead of awaiting it:</p>
+<p><strong>Pros</strong></p>
+<ul>
+<li>There is no context switch, so it's <strong>deadlock free</strong> and you don't need to use hacks - <code>.ConfigureAwait(false)</code></li>
+<li>It's ~16 times faster (but the difference is ~20ns)</li>
+<li>Less code is generated =&gt; less work for JIT compiler</li>
+<li>Easier to decompile, read and debug</li>
+</ul>
+<p><strong>Cons</strong></p>
+<ul>
+<li>You should be very carful in case of disposable objects</li>
+</ul>
+
+
+  
+        <ul class="actions small">
+                    <li><a role="button" href="/tags/async.html" class="button small special">async</a></li>
+                    <li><a role="button" href="/tags/await.html" class="button small special">await</a></li>
+                    <li><a role="button" href="/tags/c%23.html" class="button small special">c#</a></li>
+                    <li><a role="button" href="/tags/deadlock.html" class="button small special">deadlock</a></li>
+                    <li><a role="button" href="/tags/Performance.html" class="button small special">Performance</a></li>
+                    <li><a role="button" href="/tags/threading.html" class="button small special">threading</a></li>
+        </ul>     
+ 
+					</section>
+
+			</div>
+
+			<!-- Footer -->
+			<footer id="footer">
+				<section>
+        <h2>Feeds</h2>
+        <ul class="actions">
+            <li><a href="/feed.rss" class="button small"><i class="fa fa-rss"></i> RSS Feed</a></li>
+                        <li><a href="/feed.atom" class="button small"><i class="fa fa-rss"></i> Atom Feed</a></li>
+        </ul>
+</section>
+<section>
+</section>
+<p class="copyright">
+    Copyright © 2019,
+    Design: <a href="http://html5up.net">HTML5 UP</a>,
+    <a href="https://wyam.io">Generated by Wyam</a>
+</p>
+			</footer>
+
+		</div>
+		
+		
+
+	<!-- Scripts -->
+	<script src="/assets/js/jquery.min.js"></script>
+	<script src="/assets/js/jquery.scrollex.min.js"></script>
+	<script src="/assets/js/jquery.scrolly.min.js"></script>
+	<script src="/assets/js/skel.min.js"></script>
+	<script src="/assets/js/util.js"></script>
+	<!--[if lte IE 8]><script src="/assets/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/assets/js/main.js"></script>
+
+	</body>
+	
+</html>

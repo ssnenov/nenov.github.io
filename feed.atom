@@ -4,8 +4,73 @@
 	<title>Simeon Nenov's blog</title>
 	<link rel="self" href="http://ssnenov.github.io/" />
 	<rights>2019</rights>
-	<updated>2019-03-02T09:55:58Z</updated>
+	<updated>2019-03-10T11:07:20Z</updated>
 	<subtitle>Welcome!</subtitle>
+	<entry>
+		<id>http://ssnenov.github.io/posts/return-task-instead-of-await</id>
+		<title>Return a Task instead of awaiting it</title>
+		<link href="http://ssnenov.github.io/posts/return-task-instead-of-await" />
+		<updated>2019-03-10T00:00:00Z</updated>
+		<content>&lt;p&gt;I will show you some reasons to return a task instead of awaiting it.&lt;/p&gt;
+&lt;p&gt;Imaging you have the following case:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;private &lt;/span&gt;&lt;span class="Keyword"&gt;static &lt;/span&gt;&lt;span class="Keyword"&gt;async &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;WaitAsync() =&gt; &lt;span class="Keyword"&gt;await &lt;/span&gt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Delay&lt;/span&gt;(&lt;span class="Number"&gt;100&lt;/span&gt;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;First question that comes in my mind is why not returning directly the task instead of awaiting on it. Of course the first answer I have is - because it won't generate redundant state machine. So I've googled about this topic and I found just the same reason + an explanation that the code will be faster. It's is logically, in most cases less code means faster execution. This is a &lt;strong&gt;fantastic&lt;/strong&gt; &lt;a href="https://www.tabsoverspaces.com/233659-do-not-await-what-does-not-need-to-be-awaited"&gt;post&lt;/a&gt; on this topic. One interesting point described in the article is that you haven't to return the task in case of disposable objects:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;public &lt;/span&gt;&lt;span class="Keyword"&gt;async &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;FooBar()
+{
+&lt;span class="Keyword"&gt;	using &lt;/span&gt;(&lt;span class="Identifier"&gt;var &lt;/span&gt;foo = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;Foo&lt;/span&gt;())
+	{
+&lt;span class="Keyword"&gt;		await &lt;/span&gt;&lt;span class="MethodIdentifier"&gt;SomethingAsync&lt;/span&gt;(foo);
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This is another example:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;public &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;GetDataAsync()
+{
+&lt;span class="Keyword"&gt;	using &lt;/span&gt;(&lt;span class="Identifier"&gt;var &lt;/span&gt;httpClient = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;HttpClient&lt;/span&gt;())
+	{
+&lt;span class="Keyword"&gt;		return &lt;/span&gt;httpClient.&lt;span class="MethodIdentifier"&gt;GetStringAsync&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"https://google.com"&lt;/span&gt;);
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this way &lt;code&gt;httpClient&lt;/code&gt; will be disposed before the the async operation is completed. Using different types the async operation might be sent/start executed, but the callback/response won't be handled because the caller object is disposed. It cloud be possible to finish the async operation even the caller object is disposed, but keep in mind that this is implementation specific and it's better to not relay on this. So a &lt;strong&gt;good rule of thumb&lt;/strong&gt;: don't use async/await when you play with disposable objects.&lt;/p&gt;
+&lt;p&gt;However, thinking twice got me another reason to return the task instead of awaiting it - you are escaping from the deadlock hell. You can read more about it in my previous post - &lt;a href="stop-using-result-and-wait-and-why-it-is-dangerous.html"&gt;Stop using .Result or .Wait() on tasks and why it's&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;So imaging we have the following case:&lt;/p&gt;
+&lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Keyword"&gt;private &lt;/span&gt;&lt;span class="Keyword"&gt;void &lt;/span&gt;button_Click(&lt;span class="Keyword"&gt;object &lt;/span&gt;sender, &lt;span class="Identifier"&gt;RoutedEventArgs &lt;/span&gt;e)
+{
+&lt;span class="MethodIdentifier"&gt;    Delay&lt;/span&gt;().&lt;span class="MethodIdentifier"&gt;Wait&lt;/span&gt;();
+&lt;span class="Identifier"&gt;    MessageBox&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Show&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"Delay called."&lt;/span&gt;);
+&lt;span class="MethodIdentifier"&gt;
+    Delay2&lt;/span&gt;().&lt;span class="MethodIdentifier"&gt;Wait&lt;/span&gt;();
+&lt;span class="Identifier"&gt;    MessageBox&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Show&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"Delay2 called."&lt;/span&gt;);
+&lt;span class="MethodIdentifier"&gt;
+    Delay3&lt;/span&gt;().&lt;span class="MethodIdentifier"&gt;Wait&lt;/span&gt;();
+&lt;span class="Identifier"&gt;    MessageBox&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Show&lt;/span&gt;(&lt;span class="StringLiteral"&gt;"Delay3 called."&lt;/span&gt;);
+}
+&lt;span class="Keyword"&gt;
+private &lt;/span&gt;&lt;span class="Keyword"&gt;static &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;Delay() =&gt; &lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Delay&lt;/span&gt;(&lt;span class="Number"&gt;100&lt;/span&gt;);
+&lt;span class="Keyword"&gt;
+private &lt;/span&gt;&lt;span class="Keyword"&gt;static &lt;/span&gt;&lt;span class="Keyword"&gt;async &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;Delay2() =&gt; &lt;span class="Keyword"&gt;await &lt;/span&gt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Delay&lt;/span&gt;(&lt;span class="Number"&gt;100&lt;/span&gt;).&lt;span class="MethodIdentifier"&gt;ConfigureAwait&lt;/span&gt;(&lt;span class="Keyword"&gt;false&lt;/span&gt;);
+&lt;span class="Keyword"&gt;
+private &lt;/span&gt;&lt;span class="Keyword"&gt;static &lt;/span&gt;&lt;span class="Keyword"&gt;async &lt;/span&gt;&lt;span class="Identifier"&gt;Task &lt;/span&gt;Delay3() =&gt; &lt;span class="Keyword"&gt;await &lt;/span&gt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;Delay&lt;/span&gt;(&lt;span class="Number"&gt;100&lt;/span&gt;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When running the code you will never end with &amp;quot;Delay3 called.&amp;quot; message because you have deadlocked your application. In order to prevent the deadlock in &lt;code&gt;Delay2&lt;/code&gt; method we are using &lt;code&gt;.ConfigureAwait(false)&lt;/code&gt; which is described as a hack by Stephen Cleary. This is why it's better to return the task directly like in &lt;code&gt;Delay&lt;/code&gt; method.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;These are the pros and cons of returning a task instead of awaiting it:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Pros&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;There is no context switch, so it's &lt;strong&gt;deadlock free&lt;/strong&gt; and you don't need to use hacks - &lt;code&gt;.ConfigureAwait(false)&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;It's ~16 times faster (but the difference is ~20ns)&lt;/li&gt;
+&lt;li&gt;Less code is generated =&amp;gt; less work for JIT compiler&lt;/li&gt;
+&lt;li&gt;Easier to decompile, read and debug&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Cons&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;You should be very carful in case of disposable objects&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+		<summary>&lt;p&gt;I will show you some reasons to return a task instead of awaiting it.&lt;/p&gt;</summary>
+	</entry>
 	<entry>
 		<id>http://ssnenov.github.io/posts/ultimate-git-setup-for-windows</id>
 		<title>Ultimate Git setup for windows</title>
@@ -156,7 +221,8 @@ git commit -m &amp;quot;Commit message&amp;quot;
 		<updated>2019-02-02T00:00:00Z</updated>
 		<content>&lt;p&gt;I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.&lt;/p&gt;
 &lt;p&gt;Let's get straight to the point.&lt;/p&gt;
-&lt;p&gt;Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &amp;quot;use async/await all the way down&amp;quot; with complex explanations. But why not opposite - using Result or Wait()? Because of potential &amp;quot;thread starvation&amp;quot; and/or &amp;quot;deadlock&amp;quot;. Without any examples it is not giving enough light on this topic to me. And you, right?&lt;/p&gt;
+&lt;p&gt;Frequently I'm spotting the mistake of calling .Result or .Wait() in projects, forums and blog posts. There are a lot of articles saying that you have not do it, but without enough explanations and examples Why. Most of them are just saying: &amp;quot;use async/await all the way down&amp;quot; with complex explanations. But why not the opposite - using Result or Wait()? Because of potential &amp;quot;thread starvation&amp;quot; and/or &amp;quot;deadlock&amp;quot;. Without any examples it is not giving enough light on this topic to me. And you, right?&lt;/p&gt;
+&lt;p&gt;The most common way to deadlock your application is when your have a synchronization context and the main thread is waiting to complete a task which will be completed when the main thread is ready/free to complete it. Stephen Cleary wrote a great &lt;a href="http://blog.stephencleary.com/2012/07/dont-block-on-async-code.html"&gt;article&lt;/a&gt; about this case. Also you can read &lt;a href="return-task-instead-of-await.html"&gt;my article&lt;/a&gt; with an example of deadlock with synchronization contexts. So there is no need to cover this case in more details because there are a tons of articles on this topic - just google it.&lt;/p&gt;
 &lt;p&gt;Ok. Enough. If you are still with me let's get our hands dirty and see some code:&lt;/p&gt;
 &lt;pre class="language-csharp"&gt;&lt;code&gt;&lt;span class="Identifier"&gt;ThreadPool&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;SetMaxThreads&lt;/span&gt;(&lt;span class="Number"&gt;4&lt;/span&gt;, &lt;span class="Number"&gt;4&lt;/span&gt;);
 &lt;span class="Identifier"&gt;var &lt;/span&gt;tasks = &lt;span class="Keyword"&gt;new &lt;/span&gt;&lt;span class="Identifier"&gt;List&lt;/span&gt;&lt;&lt;span class="Identifier"&gt;Task&lt;/span&gt;&gt;();
@@ -218,9 +284,12 @@ Task&lt;/span&gt;.&lt;span class="MethodIdentifier"&gt;WhenAll&lt;/span&gt;(task
 &lt;center&gt;&lt;img src="images/deadlock2.jpg"/&gt;&lt;/center&gt;
 &lt;p&gt;I suggest you to not use async/await because it's just new (to you) or it's cool. If you don't understand how exactly works and the execution context of your code (asp.net, console app, wpf app and etc.) probably it's better to stick with the &lt;strong&gt;synchronous methods&lt;/strong&gt; especially when working with asp.net or console application (wpf and winforms are kinds of a different story). Computers nowadays are extremely powerful to serve hundreds or thousands of requests per second without async I/O operation. If you need high scalability and your application should be high perform-ant then async/await is the way to go. But before that think on how you can improve your application (I think there would be tons of ways to do that) without the complexity of async/await. Another reason to not use it - it's hard to understand to newcomers and it's highly error prone even to most senior developers (you know - everybody has bugs).&lt;/p&gt;
 &lt;h3 id="resources"&gt;Resources&lt;/h3&gt;
-&lt;p&gt;&lt;a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/"&gt;https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;&lt;a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html"&gt;https://windows10gadgets.pro/tipstricks/processorqueuelength.html&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;&lt;a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/"&gt;https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/"&gt;https://blogs.msdn.microsoft.com/pfxteam/2012/04/13/should-i-expose-synchronous-wrappers-for-asynchronous-methods/&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="return-task-instead-of-await.html"&gt;Return a Task instead of awaiting it&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/"&gt;https://blogs.msdn.microsoft.com/vancem/2018/10/16/diagnosing-net-core-threadpool-starvation-with-perfview-why-my-service-is-not-saturating-all-cores-or-seems-to-stall/&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://windows10gadgets.pro/tipstricks/processorqueuelength.html"&gt;https://windows10gadgets.pro/tipstricks/processorqueuelength.html&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
 </content>
 		<summary>&lt;p&gt;I've haven't been posting from a long time ago, but I think this topic is a big one and it shouldn't be passed.&lt;/p&gt;</summary>
 	</entry>
