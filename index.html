@@ -38,6 +38,10 @@
   gtag('js', new Date());
 
   gtag('config', 'UA-39829879-8');
+
+  window.onbeforeunload = function(e) {
+    ga && ga('send', 'pageview', '/bounce');
+  };
 </script>
 		
 	</head>
@@ -104,13 +108,13 @@
                 <li><a href="/tags/Performance.html">Performance (4)</a></li>
                 <li><a href="/tags/c%23.html">c# (3)</a></li>
                 <li><a href="/tags/JavaScript.html">JavaScript (3)</a></li>
-                <li><a href="/tags/Kendo-UI.html">Kendo UI (2)</a></li>
-                <li><a href="/tags/threading.html">threading (2)</a></li>
-                <li><a href="/tags/await.html">await (2)</a></li>
                 <li><a href="/tags/ajax.html">ajax (2)</a></li>
                 <li><a href="/tags/html.html">html (2)</a></li>
                 <li><a href="/tags/deadlock.html">deadlock (2)</a></li>
                 <li><a href="/tags/async.html">async (2)</a></li>
+                <li><a href="/tags/Kendo-UI.html">Kendo UI (2)</a></li>
+                <li><a href="/tags/threading.html">threading (2)</a></li>
+                <li><a href="/tags/await.html">await (2)</a></li>
         </ul>
         <ul class="actions small">
             <li><a href="/tags" class="button small">View All Tags &rarr;</a></li>

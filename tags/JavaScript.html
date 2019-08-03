@@ -38,6 +38,10 @@
   gtag('js', new Date());
 
   gtag('config', 'UA-39829879-8');
+
+  window.onbeforeunload = function(e) {
+    ga && ga('send', 'pageview', '/bounce');
+  };
 </script>
 		
 	</head>
@@ -119,13 +123,19 @@
                         <a href="/tags/deadlock.html">deadlock (2)</a>
                 </li>
                 <li>
-                        <a href="/tags/html.html">html (2)</a>
-                </li>
-                <li>
                         <a href="/tags/ajax.html">ajax (2)</a>
                 </li>
                 <li>
                         <a href="/tags/Kendo-UI.html">Kendo UI (2)</a>
+                </li>
+                <li>
+                        <a href="/tags/html.html">html (2)</a>
+                </li>
+                <li>
+                        <a href="/tags/jQuery.html">jQuery (1)</a>
+                </li>
+                <li>
+                        <a href="/tags/MVC.html">MVC (1)</a>
                 </li>
                 <li>
                         <a href="/tags/git.html">git (1)</a>
@@ -141,12 +151,6 @@
                 </li>
                 <li>
                         <a href="/tags/DOM.html">DOM (1)</a>
-                </li>
-                <li>
-                        <a href="/tags/jQuery.html">jQuery (1)</a>
-                </li>
-                <li>
-                        <a href="/tags/MVC.html">MVC (1)</a>
                 </li>
                 <li>
                         <a href="/tags/arrays.html">arrays (1)</a>
